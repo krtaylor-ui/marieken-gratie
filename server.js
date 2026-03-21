@@ -483,7 +483,8 @@ io.on('connection', (socket) => {
 // =============================================================================
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+console.log('Starting on port:', PORT, 'ENV PORT:', process.env.PORT);
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ========================================
   Russian Bank server running
