@@ -204,8 +204,6 @@ function applyMove(move) {
 
 io.on('connection', (socket) => {
 
-  console.log('New connection:', socket.id, 'Total:', Object.keys(playerToSocket).length);
-
   // --- Reject if room is already full ---
   const connectedCount = Object.keys(playerToSocket).length;
   if (connectedCount >= 2) {
@@ -483,7 +481,7 @@ io.on('connection', (socket) => {
 // =============================================================================
 
 const PORT = process.env.PORT || 3000;
-console.log('Starting on port:', PORT, 'ENV PORT:', process.env.PORT);
+console.log('Starting — ENV PORT:', process.env.PORT, '→ binding to:', PORT);
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ========================================
