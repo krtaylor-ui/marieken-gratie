@@ -204,6 +204,8 @@ function applyMove(move) {
 
 io.on('connection', (socket) => {
 
+  console.log('New connection:', socket.id, 'Total:', Object.keys(playerToSocket).length);
+
   // --- Reject if room is already full ---
   const connectedCount = Object.keys(playerToSocket).length;
   if (connectedCount >= 2) {
