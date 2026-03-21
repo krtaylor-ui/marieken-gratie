@@ -18,6 +18,8 @@
 
 'use strict';
 
+console.log('ALL ENV VARS:', JSON.stringify(process.env));
+
 const express  = require('express');
 const http     = require('http');
 const { Server } = require('socket.io');
