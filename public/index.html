@@ -1,0 +1,1506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marieke's Gratie</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Crimson+Pro:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+
+    /* =========================================================
+       DESIGN: Classic green baize card table
+       ========================================================= */
+
+    :root {
+      --felt:         #1a472a;
+      --felt-light:   #1f5233;
+      --felt-shadow:  #122e1c;
+      --card-bg:      #fdf6e3;
+      --card-border:  #d4c5a0;
+      --card-back:     #1a3a6b;   /* default back — deck 1 blue */
+      --card-back-d2:  #6b1a1a;   /* deck 2 red back */
+      --red:          #c0392b;
+      --black:        #1a1a1a;
+      --gold:         #c8a84b;
+      --gold-light:   #e8c96b;
+      --text-light:   #f0e6c8;
+      --text-dim:     #8aad94;
+      --select-glow:  rgba(200,168,75,0.9);
+      --waste-tint:   rgba(0,0,0,0.38);
+      --card-w:       clamp(58px, 6.5vw, 86px);
+      --card-h:       clamp(82px, 9.5vw, 120px);
+      --card-font:    clamp(0.72rem, 1vw, 0.95rem);
+      --card-suit:    clamp(1.3rem, 2vw, 2rem);
+      --card-r:       6px;
+      --shadow:       0 4px 12px rgba(0,0,0,0.5);
+      --gap:          clamp(5px, 0.8vw, 10px);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--felt);
+      background-image:
+        radial-gradient(ellipse at 50% 50%, var(--felt-light) 0%, var(--felt-shadow) 100%),
+        url("data:image/svg+xml,%3Csvg width='4' height='4' viewBox='0 0 4 4' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 3h1v1H1V3zm2-2h1v1H3V1z' fill='%23ffffff' fill-opacity='0.03'/%3E%3C/svg%3E");
+      color: var(--text-light);
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 16px;
+      min-height: 100vh;
+      user-select: none;
+      overflow-x: hidden;
+    }
+
+    /* =========================================================
+       SCREENS
+       ========================================================= */
+
+    .screen { display: none; }
+    .screen.active { display: flex; flex-direction: column; align-items: center; }
+
+    #screen-waiting {
+      justify-content: center; min-height: 100vh;
+      gap: 20px; text-align: center;
+    }
+    #screen-waiting h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      color: var(--gold);
+      text-shadow: 0 2px 12px rgba(200,168,75,0.4);
+      letter-spacing: 2px;
+    }
+    #screen-waiting p { color: var(--text-dim); font-size: 1.1rem; }
+
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--felt-light);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #screen-gameover {
+      justify-content: center; min-height: 100vh;
+      gap: 16px; text-align: center;
+    }
+    #screen-gameover h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2.5rem, 6vw, 3.5rem);
+      color: var(--gold);
+      text-shadow: 0 2px 20px rgba(200,168,75,0.6);
+    }
+    #gameover-message { font-size: 1.4rem; }
+
+    /* =========================================================
+       GAME SCREEN
+       ========================================================= */
+
+    #screen-game {
+      width: 100%; min-height: 100vh;
+      padding: 8px 10px; gap: 6px;
+    }
+
+    .top-bar {
+      width: 100%;
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 4px 0 6px;
+      border-bottom: 1px solid rgba(200,168,75,0.2);
+      flex-wrap: wrap; gap: 6px;
+    }
+    .player-label {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(0.85rem, 1.5vw, 1rem);
+      color: var(--gold); letter-spacing: 1px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .turn-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--gold); box-shadow: 0 0 8px var(--gold);
+      animation: pulse 1.5s ease-in-out infinite; flex-shrink: 0;
+    }
+    .turn-dot.off { animation: none; opacity: 0.2; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .action-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn-action {
+      padding: 4px 12px;
+      background: transparent; border: 1px solid var(--gold);
+      color: var(--gold); font-family: 'Crimson Pro', serif;
+      font-size: clamp(0.75rem, 1.2vw, 0.85rem);
+      letter-spacing: 0.5px; border-radius: 3px;
+      cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+    .btn-action:hover  { background: var(--gold); color: var(--felt-shadow); }
+    .btn-action:disabled { opacity: 0.22; cursor: not-allowed; pointer-events: none; }
+    .btn-end-turn { background: rgba(200,168,75,0.15); border-color: var(--gold-light); }
+    .btn-forfeit  { border-color: #c0392b; color: #c0392b; }
+    .btn-forfeit:hover { background: #c0392b; color: white; }
+
+    .status-bar {
+      width: 100%; text-align: center; padding: 3px;
+      font-size: clamp(0.78rem, 1.2vw, 0.88rem);
+      color: var(--text-dim); min-height: 22px; letter-spacing: 0.4px;
+    }
+    .status-bar.your-turn { color: var(--gold); }
+    .status-bar.error     { color: #e74c3c; }
+
+    /* =========================================================
+       TABLE LAYOUT:
+       Col 1: P1 tableau (4 rows, fans LEFT)
+       Col 2: Foundations left (4 rows)
+       Col 3: Foundations right (4 rows)
+       Col 4: P2 tableau (4 rows, fans RIGHT)
+       ========================================================= */
+
+    .table-area {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr auto auto 1fr;
+      gap: var(--gap);
+      justify-content: center;
+      align-items: start;
+    }
+
+    /* Each tableau side: vertical stack of 4 row-slots */
+    .tableau-side {
+      display: flex;
+      flex-direction: column;
+      gap: var(--gap);
+    }
+
+    /* P1 side aligns right so cards fan leftward from the foundation edge */
+    .tableau-side.p1-side { align-items: flex-end; }
+    /* P2 side aligns left so cards fan rightward */
+    .tableau-side.p2-side { align-items: flex-start; }
+
+    /* Foundation columns: vertical stack of 4 piles */
+    .foundation-col {
+      display: flex;
+      flex-direction: column;
+      gap: var(--gap);
+      width: var(--card-w);
+    }
+
+    /* Each tableau row is a horizontal strip — fixed height, grows sideways */
+    .tableau-row-slot {
+      position: relative;
+      height: var(--card-h);
+      flex-shrink: 0;
+      overflow: visible;  /* cards must be allowed to extend beyond row bounds */
+    }
+
+    /* Cards inside a row slot are absolutely positioned, offset sideways */
+    /* No default left/right here — JS sets each card's position explicitly */
+    .tableau-row-slot .card,
+    .tableau-row-slot .card-slot {
+      position: absolute;
+      top: 0;
+    }
+
+    /* Equal-width action buttons in Your Cards section */
+    .btn-action { min-width: 88px; text-align: center; }
+
+    /* Status / instruction line above each player zone border */
+    .zone-status {
+      font-family: 'Crimson Pro', serif;
+      font-size: clamp(0.72rem, 1.1vw, 0.85rem);
+      color: var(--text-dim);
+      letter-spacing: 0.4px;
+      margin-bottom: 4px;
+      min-height: 18px;
+    }
+    .zone-status.your-turn { color: var(--gold); }
+    .zone-status.error     { color: #e74c3c; }
+
+    /* Deck 2 face-down cards use red back instead of blue */
+    .card.face-down.deck2-back {
+      background-color: var(--card-back-d2);
+    }
+
+    /* =========================================================
+       TABLEAU HOVER TOOLTIP
+       Shows all cards in a column when hovering
+       ========================================================= */
+
+    .tableau-tooltip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15,30,20,0.97);
+      border: 1px solid var(--gold);
+      border-radius: 6px;
+      padding: 8px 10px;
+      z-index: 200;
+      white-space: nowrap;
+      font-family: 'Crimson Pro', serif;
+      font-size: 0.82rem;
+      color: var(--text-light);
+      pointer-events: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+    }
+    .tableau-tooltip .tt-card { display: block; line-height: 1.5; }
+    .tableau-tooltip .tt-card.red  { color: #e05050; }
+    .tableau-tooltip .tt-card.black { color: #d4c5a0; }
+    .tableau-tooltip .tt-playable {
+      border-top: 1px solid rgba(200,168,75,0.3);
+      margin-top: 4px; padding-top: 4px;
+      color: var(--gold);
+    }
+    .tableau-row-slot:hover .tableau-tooltip { display: block; }
+
+    /* =========================================================
+       STACKED STOCK PILE
+       Shows top few face-down cards cascaded behind top card
+       ========================================================= */
+
+    .stock-stack {
+      position: relative;
+      width: var(--card-w);
+      height: var(--card-h);
+      flex-shrink: 0;
+    }
+    .stock-stack .card {
+      position: absolute;
+      top: 0; left: 0;
+    }
+
+    /* =========================================================
+       WIDESCREEN LAYOUT
+       My cards column left, opponent cards column right,
+       table in the middle — all on one row
+       ========================================================= */
+
+    /* Toggle button in top bar */
+    .btn-view-toggle {
+      padding: 3px 10px;
+      background: transparent;
+      border: 1px solid rgba(200,168,75,0.4);
+      color: var(--text-dim);
+      font-family: 'Crimson Pro', serif;
+      font-size: 0.78rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .btn-view-toggle:hover { border-color: var(--gold); color: var(--gold); }
+
+    /* Widescreen game screen overrides */
+    #screen-game.widescreen {
+      flex-direction: row;
+      align-items: flex-start;
+      padding: 8px 6px;
+      gap: 6px;
+      min-height: 100vh;
+    }
+
+    /* In widescreen mode hide the top/bottom horizontal zones */
+    #screen-game.widescreen .player-zone,
+    #screen-game.widescreen .player-zone.opponent { display: none; }
+
+    /* Show the sidebar zones instead */
+    .sidebar-zone { display: none; }
+    #screen-game.widescreen .sidebar-zone { display: flex; }
+
+    .sidebar-zone {
+      flex-direction: column;
+      align-items: center;
+      gap: var(--gap);
+      flex-shrink: 0;
+    }
+
+    .sidebar-hand-group {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(200,168,75,0.35);
+      border-radius: 10px;
+      padding: 6px 8px 10px;
+      gap: var(--gap);
+      background: rgba(0,0,0,0.12);
+      transition: border-color 0.3s, box-shadow 0.3s;
+      align-items: center;
+    }
+    .sidebar-hand-group.active-turn {
+      border: 2px solid var(--gold);
+      box-shadow: 0 0 16px 2px rgba(200,168,75,0.35);
+    }
+    .sidebar-hand-group .hand-group-label {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(0.7rem, 1vw, 0.88rem);
+      color: var(--gold); letter-spacing: 1px; text-align: center;
+    }
+    .sidebar-pile-row {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--gap);
+    }
+    .sidebar-pile {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+    }
+
+    /* Sidebar action buttons — stacked vertically */
+    .sidebar-btns {
+      display: flex; flex-direction: column; gap: 4px; width: 100%;
+    }
+    .sidebar-btns .btn-action { min-width: 0; width: 100%; text-align: center; }
+
+    /* Widescreen status above sidebar group */
+    .sidebar-status {
+      font-family: 'Crimson Pro', serif;
+      font-size: clamp(0.65rem, 0.9vw, 0.78rem);
+      color: var(--text-dim); min-height: 16px;
+      text-align: center; letter-spacing: 0.3px;
+    }
+    .sidebar-status.your-turn { color: var(--gold); }
+
+    /* Middle table area — same in both modes */
+    .table-middle {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--gap);
+      flex: 1;
+      min-width: 0;
+    }
+    /* In standard mode table-middle is not used — table-area is direct child */
+    #screen-game:not(.widescreen) .table-middle { display: contents; }
+
+    /* =========================================================
+       TOOLTIP for tableau hover
+       ========================================================= */
+    .card-tooltip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1a2e20;
+      border: 1px solid var(--gold);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-family: 'Crimson Pro', serif;
+      font-size: 0.78rem;
+      color: var(--text-light);
+      white-space: nowrap;
+      z-index: 200;
+      pointer-events: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+    }
+    .tableau-row-slot:hover .card-tooltip { display: block; }
+
+    /* =========================================================
+       STOCK FAN
+       Only face-up cards (played by opponent) fan out.
+       Reserve static width equal to max fan so waste never shifts.
+       ========================================================= */
+    .stock-fan {
+      position: relative;
+      height: var(--card-h);
+      /* Static width = card + 4 extra slots — always reserved */
+      width: calc(var(--card-w) + 4 * 14px);
+      flex-shrink: 0;
+    }
+    .stock-fan .card,
+    .stock-fan .card-slot {
+      position: absolute;
+      top: 0;
+    }
+
+    /* Stock fan works the same in both standard and widescreen modes */
+
+    /* =========================================================
+       WIDESCREEN LAYOUT
+       body.widescreen: 3-column grid — my piles | table | opp piles
+       ========================================================= */
+    body.widescreen #screen-game {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      grid-template-rows: auto 1fr;
+      grid-template-areas:
+        "topbar  topbar   topbar"
+        "myzone  table    oppzone";
+      align-items: stretch;
+      column-gap: 8px;
+      min-height: 100vh;
+      padding: 6px 8px;
+    }
+    body.widescreen .top-bar              { grid-area: topbar; align-self: start; }
+    body.widescreen #main-table-wrapper   { grid-area: table;  display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    body.widescreen #zone-mine-wrapper    { grid-area: myzone; display: flex; flex-direction: column; justify-content: center; }
+    body.widescreen #zone-opponent-wrapper{ grid-area: oppzone; display: flex; flex-direction: column; justify-content: center; }
+
+    /* Widescreen: bigger cards */
+    body.widescreen {
+      --card-w:    clamp(72px, 8vw, 110px);
+      --card-h:    clamp(100px, 11.5vw, 154px);
+      --card-font: clamp(0.85rem, 1.2vw, 1.1rem);
+      --card-suit: clamp(1.6rem, 2.5vw, 2.6rem);
+    }
+
+    /* Widescreen: player zones become vertical stacks */
+    body.widescreen .player-zone,
+    body.widescreen .player-zone.opponent {
+      width: auto;
+      justify-content: center;
+    }
+    body.widescreen .hand-group {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    body.widescreen .hand-group-piles {
+      flex-direction: column !important;
+      align-items: stretch;
+      gap: var(--gap);
+    }
+
+    /* Widescreen: each pile row = label LEFT + card RIGHT */
+    body.widescreen .pile-group {
+      flex-direction: row !important;
+      align-items: center;
+      gap: 8px;
+    }
+    body.widescreen .zone-label {
+      min-width: 38px;
+      text-align: right;
+      font-size: clamp(0.55rem, 0.75vw, 0.7rem);
+    }
+
+    /* Widescreen: buttons stack vertically, full width */
+    body.widescreen #my-btn-group {
+      flex-direction: column !important;
+      justify-content: flex-start !important;
+      align-items: stretch !important;
+      width: 100%;
+      gap: 5px;
+      padding-top: 4px;
+    }
+    body.widescreen .btn-action {
+      width: 100%;
+      text-align: center;
+    }
+
+    /* (stock fan enabled in widescreen — no override needed) */
+
+    /* Widescreen: hide standard top/bottom zones (already shown in sides) */
+    body.widescreen .player-zone.opp-standard,
+    body.widescreen .player-zone.my-standard {
+      display: none;
+    }
+
+    /* View toggle button */
+    .btn-view-toggle {
+      padding: 4px 10px;
+      background: transparent;
+      border: 1px solid var(--text-dim);
+      color: var(--text-dim);
+      font-family: 'Crimson Pro', serif;
+      font-size: clamp(0.7rem, 1vw, 0.8rem);
+      border-radius: 3px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      margin-left: auto;
+    }
+    .btn-view-toggle:hover { border-color: var(--gold); color: var(--gold); }
+
+    .player-zone { width: 100%; display: flex; justify-content: flex-start; }
+    .player-zone.opponent { justify-content: flex-end; }
+
+    .hand-group {
+      display: inline-flex; flex-direction: column;
+      border: 1px solid rgba(200,168,75,0.35);
+      border-radius: 10px; padding: 6px 10px 8px;
+      gap: 4px; background: rgba(0,0,0,0.12);
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    /* Thicker gold glow when it's this player's turn */
+    .hand-group.active-turn {
+      border: 2px solid var(--gold);
+      box-shadow: 0 0 16px 2px rgba(200,168,75,0.35);
+    }
+    .hand-group-label {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(0.75rem, 1.1vw, 0.95rem);
+      color: var(--gold); letter-spacing: 1px; text-align: center;
+    }
+    .hand-group-piles { display: flex; gap: var(--gap); align-items: flex-end; }
+    .pile-group { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .zone-label {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(0.55rem, 0.85vw, 0.7rem);
+      color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase;
+    }
+
+    /* =========================================================
+       CARDS
+       ========================================================= */
+
+    .card-slot {
+      width: var(--card-w); height: var(--card-h);
+      border: 2px dashed rgba(255,255,255,0.12);
+      border-radius: var(--card-r);
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,0.18); font-size: 0.75rem;
+      letter-spacing: 1px; position: relative; flex-shrink: 0;
+    }
+
+    .card {
+      width: var(--card-w); height: var(--card-h);
+      border-radius: var(--card-r);
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      box-shadow: var(--shadow);
+      display: flex; flex-direction: column;
+      justify-content: space-between;
+      padding: 4px 5px;
+      cursor: pointer; position: relative;
+      transition: transform 0.12s, box-shadow 0.12s;
+      flex-shrink: 0;
+    }
+    .card:hover:not(.face-down):not(.selected):not(.waste-card) {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 18px rgba(0,0,0,0.55);
+    }
+
+    /* SELECTED — pulsing gold glow, lifted */
+    .card.selected {
+      transform: translateY(-10px) !important;
+      animation: card-glow 1.1s ease-in-out infinite;
+      z-index: 50;
+    }
+    @keyframes card-glow {
+      0%,100% {
+        box-shadow: 0 12px 24px rgba(0,0,0,0.7),
+                    0 0 0 2px var(--gold),
+                    0 0 16px 4px rgba(200,168,75,0.8);
+      }
+      50% {
+        box-shadow: 0 12px 24px rgba(0,0,0,0.7),
+                    0 0 0 2px var(--gold-light),
+                    0 0 30px 10px rgba(200,168,75,0.25);
+      }
+    }
+
+    /* Face-down */
+    .card.face-down {
+      background: var(--card-back);
+      background-image: repeating-linear-gradient(
+        45deg, transparent, transparent 4px,
+        rgba(200,168,75,0.07) 4px, rgba(200,168,75,0.07) 5px
+      );
+      cursor: default;
+    }
+    .card.face-down:hover { transform: none; box-shadow: var(--shadow); }
+
+    /* Own waste — greyed overlay */
+    .card.waste-card {
+      cursor: default;
+    }
+    .card.waste-card::after {
+      content: ''; position: absolute; inset: 0;
+      border-radius: var(--card-r);
+      background: var(--waste-tint); pointer-events: none;
+    }
+
+    .card-corner {
+      font-size: var(--card-font); font-weight: 700; line-height: 1.1;
+    }
+    .card-corner.tl { align-self: flex-start; }
+    .card-corner.br { align-self: flex-end; transform: rotate(180deg); }
+    .card-suit-big {
+      font-size: var(--card-suit); text-align: center;
+      line-height: 1; align-self: center;
+    }
+    .card.red   .card-corner, .card.red   .card-suit-big { color: var(--red); }
+    .card.black .card-corner, .card.black .card-suit-big { color: var(--black); }
+
+    .deck-badge {
+      position: absolute; top: 2px; right: 2px;
+      width: 11px; height: 11px; border-radius: 50%;
+      font-size: 6.5px; display: flex;
+      align-items: center; justify-content: center;
+      font-weight: bold; pointer-events: none;
+    }
+    .deck-badge.d1 { background: #3a7bd5; color: white; }
+    .deck-badge.d2 { background: #9b3a7b; color: white; }
+
+    .pile-count {
+      position: absolute; bottom: 4px; left: 0; right: 0;
+      text-align: center; font-size: 0.62rem;
+      color: rgba(255,255,255,0.4); pointer-events: none;
+    }
+
+    /* =========================================================
+       MODAL
+       ========================================================= */
+
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.72); z-index: 200;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: #1a2e20; border: 1px solid var(--gold);
+      border-radius: 8px; padding: 28px 36px;
+      text-align: center; max-width: 340px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+    }
+    .modal h2 { font-family:'Playfair Display',serif; color:var(--gold); margin-bottom:10px; font-size:1.3rem; }
+    .modal p  { color:var(--text-light); margin-bottom:20px; line-height:1.5; }
+    .modal-btns { display:flex; gap:12px; justify-content:center; }
+    .btn-yes { background:#27ae60; border:none; color:white; padding:9px 24px; border-radius:4px; cursor:pointer; font-size:1rem; font-family:'Crimson Pro',serif; transition:background 0.15s; }
+    .btn-yes:hover { background:#2ecc71; }
+    .btn-no  { background:#c0392b; border:none; color:white; padding:9px 24px; border-radius:4px; cursor:pointer; font-size:1rem; font-family:'Crimson Pro',serif; transition:background 0.15s; }
+    .btn-no:hover  { background:#e74c3c; }
+
+  </style>
+</head>
+<body>
+
+  <!-- WAITING -->
+  <div id="screen-waiting" class="screen active">
+    <h1>Marieke's Gratie</h1>
+    <div class="spinner"></div>
+    <p id="waiting-message">Connecting...</p>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game" class="screen">
+
+    <div class="top-bar">
+      <div class="player-label">
+        <span class="turn-dot off" id="my-turn-dot"></span>
+        <span id="my-label">Player ?</span>
+      </div>
+      <button class="btn-view-toggle" id="btn-view-toggle" onclick="toggleView()">⇔ Widescreen</button>
+    </div>
+
+    <!-- Opponent zone -->
+    <div id="zone-opponent-wrapper">
+      <div class="player-zone opponent">
+        <div>
+          <div class="zone-status" id="opp-status"></div>
+          <div class="hand-group" id="group-opponent">
+            <div class="hand-group-label">Opponent's Cards</div>
+            <div class="hand-group-piles" id="opp-piles-container">
+              <div class="pile-group">
+                <div class="zone-label">Hand</div>
+                <div id="opp-hand"></div>
+              </div>
+              <div class="pile-group">
+                <div class="zone-label">Active</div>
+                <div id="opp-active"></div>
+              </div>
+              <div class="pile-group">
+                <div class="zone-label">Stock</div>
+                <div id="opp-stock"></div>
+              </div>
+              <div class="pile-group">
+                <div class="zone-label">Waste</div>
+                <div id="opp-waste"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main table: P1 tableau | foundations | P2 tableau -->
+    <div id="main-table-wrapper">
+      <div class="table-area">
+        <div class="tableau-side p1-side" id="tableau-p1"></div>
+        <div class="foundation-col" id="foundation-col-1"></div>
+        <div class="foundation-col" id="foundation-col-2"></div>
+        <div class="tableau-side p2-side" id="tableau-p2"></div>
+      </div>
+    </div>
+
+    <!-- My zone -->
+    <div id="zone-mine-wrapper">
+      <div class="player-zone">
+        <div>
+          <div class="zone-status" id="my-status"></div>
+          <div class="hand-group" id="group-mine">
+            <div class="hand-group-label">Your Cards</div>
+            <div class="hand-group-piles" id="my-piles-container">
+              <div class="pile-group">
+                <div class="zone-label">Hand</div>
+                <div id="my-hand"></div>
+              </div>
+              <div class="pile-group">
+                <div class="zone-label">Active</div>
+                <div id="my-active"></div>
+              </div>
+              <div class="pile-group">
+                <div class="zone-label">Stock</div>
+                <div id="my-stock"></div>
+              </div>
+              <div class="pile-group">
+                <div class="zone-label">Waste</div>
+                <div id="my-waste"></div>
+              </div>
+              <div class="pile-group" id="my-btn-group" style="justify-content:flex-end;padding-bottom:2px;gap:5px">
+                <button class="btn-action btn-end-turn" id="btn-end"     onclick="sendEndTurn()">End Turn</button>
+                <button class="btn-action"              id="btn-cycle"   onclick="sendCycleRequest()">Stock Cycle</button>
+                <button class="btn-action"              id="btn-redeal"  onclick="sendRedealRequest()">Re-deal</button>
+                <button class="btn-action btn-forfeit"  id="btn-forfeit" onclick="sendForfeit()">Forfeit</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- GAME OVER -->
+  <div id="screen-gameover" class="screen">
+    <h1 id="gameover-title">Game Over</h1>
+    <p  id="gameover-message"></p>
+    <button class="btn-primary" onclick="requestRestart()" style="margin-top:24px">
+      Play Again
+    </button>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <h2 id="modal-title">Request</h2>
+      <p  id="modal-body">...</p>
+      <div class="modal-btns" id="modal-btns"></div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+  'use strict';
+
+  // ===========================================================================
+  // STATE
+  // ===========================================================================
+
+  const socket = io();
+
+  let myPlayerNumber = null;
+  let gameState      = null;
+  let selectedCard   = null; // { from: {type, column?}, card }
+
+  const SUITS      = { hearts:'♥', diamonds:'♦', clubs:'♣', spades:'♠' };
+  const RANK_NAMES = { 1:'A', 11:'J', 12:'Q', 13:'K' };
+
+  const rl     = rank => RANK_NAMES[rank] || String(rank);
+  const isRed  = suit => suit === 'hearts' || suit === 'diamonds';
+  const oppNum = p    => p === 1 ? 2 : 1;
+
+  // ===========================================================================
+  // SOCKET EVENTS
+  // ===========================================================================
+
+  socket.on('assigned', ({ playerNumber }) => {
+    myPlayerNumber = playerNumber;
+    document.getElementById('my-label').textContent =
+      `Player ${playerNumber}`;
+    document.getElementById('waiting-message').textContent =
+      `You are Player ${playerNumber}. Waiting for opponent...`;
+    // Re-render if gameState already arrived (race condition fix)
+    if (gameState && gameState.phase === 'playing') {
+      render(gameState);
+      showScreen('game');
+    }
+  });
+
+  socket.on('waiting',  ({ message }) =>
+    document.getElementById('waiting-message').textContent = message);
+
+  socket.on('rejected', ({ reason }) =>
+    document.getElementById('waiting-message').textContent = reason);
+
+  socket.on('gameStateUpdate', (state) => {
+    gameState = state;
+    // Successful move accepted — clear selection
+    selectedCard = null;
+
+    if (state.phase === 'gameOver')     { showGameOver(state); return; }
+    if (state.phase === 'pendingRedeal'){ showPendingModal('Re-deal Request',
+      'Your opponent wants to re-deal. Do you agree?'); return; }
+    if (state.phase === 'pendingCycle') { showPendingModal('Stock Cycle Request',
+      'Your opponent wants to cycle the stock piles. Do you agree?'); return; }
+
+    closeModal();
+    render(state);
+    showScreen('game');
+  });
+
+  socket.on('moveRejected', ({ reason }) => {
+    // Keep selectedCard — player can try a different destination
+    setStatus(reason, 'error');
+    setTimeout(() => { if (gameState) updateStatus(gameState); }, 2200);
+  });
+
+  socket.on('confirmForfeit', () =>
+    showModal('Forfeit Game?',
+      'Are you sure you want to forfeit? Your opponent will win.',
+      [
+        { label:'Yes, Forfeit', cls:'btn-no',
+          action: () => { socket.emit('confirmForfeit'); closeModal(); } },
+        { label:'Cancel', cls:'btn-yes', action: closeModal },
+      ]
+    )
+  );
+
+  socket.on('restarted', () => {
+    selectedCard = null;
+  });
+
+  // ===========================================================================
+  // ACTIONS
+  // ===========================================================================
+
+  const sendEndTurn       = () => { socket.emit('endTurn'); selectedCard = null; };
+  const sendCycleRequest  = () => socket.emit('requestCycle');
+  const sendRedealRequest = () => socket.emit('requestRedeal');
+  const sendForfeit       = () => socket.emit('requestForfeit');
+  const respondToRequest  = accepted => { socket.emit('respondToRequest', { accepted }); closeModal(); };
+
+  function requestRestart() {
+    socket.emit('requestRestart');
+  }
+
+  // ===========================================================================
+  // WIDESCREEN TOGGLE
+  // Stored in localStorage so each player's preference persists across reloads.
+  // ===========================================================================
+
+  let widescreenMode = localStorage.getItem('widescreenMode') === 'true';
+
+  function applyViewMode() {
+    if (widescreenMode) {
+      document.body.classList.add('widescreen');
+      document.getElementById('btn-view-toggle').textContent = '⇔ Standard';
+    } else {
+      document.body.classList.remove('widescreen');
+      document.getElementById('btn-view-toggle').textContent = '⇔ Widescreen';
+    }
+  }
+
+  function toggleView() {
+    widescreenMode = !widescreenMode;
+    localStorage.setItem('widescreenMode', widescreenMode);
+    applyViewMode();
+    // Re-render so pile sizing recalculates for the new layout
+    if (gameState) render(gameState);
+  }
+
+  // Apply on load
+  applyViewMode();
+
+  // ===========================================================================
+  // SELECTION & MOVE DISPATCH
+  //
+  // BUG FIX: destination clicks now go directly to sendMove(),
+  // which always uses the server-side from type — never infers
+  // the move type from which DOM element was clicked.
+  // ===========================================================================
+
+  function selectCard(fromType, card, fromColumn) {
+    if (!isMyTurn()) return;
+
+    // Re-clicking the selected card deselects it
+    if (selectedCard &&
+        selectedCard.from.type === fromType &&
+        selectedCard.from.column === fromColumn) {
+      selectedCard = null;
+      render(gameState);
+      return;
+    }
+
+    selectedCard = {
+      from: fromType === 'tableau'
+        ? { type: fromType, column: fromColumn }
+        : { type: fromType },
+      card,
+    };
+    render(gameState);
+  }
+
+  function sendMove(toType, toColumn, toPile) {
+    if (!selectedCard) return;
+    const to = { type: toType };
+    if (toColumn !== undefined) to.column = toColumn;
+    if (toPile   !== undefined) to.pile   = toPile;
+    // Don't clear selectedCard — server response will do it on success,
+    // moveRejected keeps it so player can try another destination.
+    socket.emit('makeMove', { from: selectedCard.from, to });
+  }
+
+  const isMyTurn = () =>
+    gameState &&
+    gameState.phase === 'playing' &&
+    gameState.turn.player === myPlayerNumber;
+
+  // ===========================================================================
+  // RENDER
+  // ===========================================================================
+
+  function render(state) {
+    if (!state) return;
+    const me = myPlayerNumber;
+    const op = oppNum(me);
+    const isMyTurnNow  = state.turn.player === me;
+    const isOppTurnNow = state.turn.player === op;
+
+    // activeHandCard belongs to whoever's turn it is.
+    // Only show in "my-active" if it's actually MY turn.
+    const myActiveCard  = isMyTurnNow  ? state.turn.activeHandCard : null;
+    const oppActiveCard = isOppTurnNow ? state.turn.activeHandCard : null;
+
+    // ---- My piles ----
+    // Player 1's deck = blue (1), Player 2's deck = red (2)
+    renderHandPile('my-hand',  state.players[me].hand,  me);
+    renderActive('my-active',  myActiveCard, true);
+    renderStock('my-stock',    state.players[me].stock,  true, state);
+    renderWaste('my-waste',    state.players[me].waste,  false);
+
+    // ---- Opponent piles ----
+    renderHandPile('opp-hand', state.players[op].hand,  op);
+    renderActive('opp-active', oppActiveCard, false);
+    renderStock('opp-stock',   state.players[op].stock,  false, state);
+    renderWaste('opp-waste',   state.players[op].waste,  true);
+
+    // ---- Middle ----
+    renderFoundations(state.foundations);
+    renderTableau(state.tableau, state);
+
+    updateButtons(state);
+    updateStatus(state);
+  }
+
+  // Hand pile — face-down count display only.
+  // Flipping is automatic now — no user action required.
+  // deckOwner: 1 = blue back, 2 = red back
+  function renderHandPile(id, pile, deckOwner) {
+    const el = document.getElementById(id);
+    el.innerHTML = '';
+
+    if (pile.length === 0) { el.appendChild(emptySlot()); return; }
+
+    const cardEl = document.createElement('div');
+    cardEl.className = 'card face-down';
+    if (deckOwner === 2) cardEl.classList.add('deck2-back');
+
+    const badge = document.createElement('div');
+    badge.className = 'pile-count';
+    badge.textContent = pile.length;
+    cardEl.appendChild(badge);
+
+    el.appendChild(cardEl);
+  }
+
+  // Active hand card slot.
+  // isClickable: true only for the current player's own active slot.
+  function renderActive(id, activeCard, isClickable) {
+    const el = document.getElementById(id);
+    el.innerHTML = '';
+
+    if (!activeCard) { el.appendChild(emptySlot()); return; }
+
+    const cardEl = makeCard(activeCard,
+      isClickable
+        ? () => selectCard('activeHand', activeCard, undefined)
+        : null);
+
+    // BUG3 FIX: only show selected glow on my own active slot
+    if (isClickable && selectedCard && selectedCard.from.type === 'activeHand') {
+      cardEl.classList.add('selected');
+    }
+    el.appendChild(cardEl);
+  }
+
+  // Stock pile rendering.
+  // Only face-up cards (placed there by opponent) fan sideways so you can
+  // see what was added. Face-down cards stack at a fixed anchor point so
+  // the container always stays the same width (no layout shift).
+  // In widescreen mode the fan is suppressed — single card with count.
+  const STOCK_FAN_MAX    = 5;
+  const STOCK_FAN_OFFSET = 14; // px between fanned face-up cards
+
+  function renderStock(id, pile, isMe, state) {
+    const el = document.getElementById(id);
+    el.innerHTML = '';
+
+    if (pile.length === 0) { el.appendChild(emptySlot()); return; }
+
+    const isMyTurnNow  = state.turn.player === myPlayerNumber;
+    const top = pile.at(-1);
+
+    let topClickFn;
+    if (isMe && isMyTurnNow) {
+      topClickFn = () => selectCard('stock', top, undefined);
+    } else if (!isMe) {
+      topClickFn = () => { if (selectedCard) sendMove('opponentStock'); };
+    }
+
+    const fanEl = document.createElement('div');
+    fanEl.className = 'stock-fan';
+
+    // ---- Fan face-up cards, anchor face-down at fixed edge ----
+    // Face-up cards = placed there by opponent, worth seeing.
+    // Face-down cards = own original stock, shown as a single anchored card.
+    const faceUpCards   = pile.filter(c => c.faceUp);
+    const faceDownCount = pile.length - faceUpCards.length;
+
+    const fanSlice = faceUpCards.slice(-STOCK_FAN_MAX);
+    const fanTotal = fanSlice.length;
+
+    // Face-down anchor card
+    if (faceDownCount > 0) {
+      const fdCard = makeCard({ suit:'spades', rank:0, faceUp:false,
+                                deckOwner: isMe ? myPlayerNumber : oppNum(myPlayerNumber) },
+                              null);
+      fdCard.style.position = 'absolute';
+      fdCard.style.top = '0';
+      if (isMe) fdCard.style.left  = '0';
+      else       fdCard.style.right = '0';
+      fdCard.style.zIndex = '1';
+
+      if (fanTotal === 0) {
+        const badge = document.createElement('div');
+        badge.className = 'pile-count';
+        badge.style.color = 'rgba(255,255,255,0.5)';
+        badge.textContent = pile.length;
+        fdCard.appendChild(badge);
+      }
+      fanEl.appendChild(fdCard);
+    }
+
+    // Fan face-up cards offset from the anchor
+    const baseOffset = faceDownCount > 0 ? STOCK_FAN_OFFSET : 0;
+    fanSlice.forEach((card, j) => {
+      const isTopCard = j === fanSlice.length - 1;
+      const cardEl = makeCard(card, isTopCard ? topClickFn : null);
+      cardEl.style.position = 'absolute';
+      cardEl.style.top = '0';
+      const offset = baseOffset + j * STOCK_FAN_OFFSET;
+      if (isMe) cardEl.style.left  = offset + 'px';
+      else       cardEl.style.right = offset + 'px';
+      cardEl.style.zIndex = String(j + 2);
+
+      if (isTopCard) {
+        const badge = document.createElement('div');
+        badge.className = 'pile-count';
+        badge.style.color = '#1a1a1a';
+        badge.textContent = pile.length;
+        cardEl.appendChild(badge);
+        if (isMe && selectedCard && selectedCard.from.type === 'stock') {
+          cardEl.classList.add('selected');
+        }
+      }
+      fanEl.appendChild(cardEl);
+    });
+
+    // If all face-down (no fan), make the single card clickable
+    if (fanTotal === 0 && faceDownCount > 0) {
+      const fdEl = fanEl.firstChild;
+      if (fdEl && topClickFn) fdEl.onclick = topClickFn;
+    }
+
+    el.appendChild(fanEl);
+  }
+
+  // Waste pile — top card only.
+  // Own waste: normally greyed out; but when your active card is selected,
+  //            it becomes a drop target that triggers End Turn (discards to waste).
+  // Opponent waste: always a clickable drop target.
+  function renderWaste(id, pile, isOpponent) {
+    const el = document.getElementById(id);
+    el.innerHTML = '';
+
+    // Determine if own waste is currently an end-turn target
+    const ownWasteActive = !isOpponent &&
+                           isMyTurn() &&
+                           selectedCard &&
+                           selectedCard.from.type === 'activeHand';
+
+    if (pile.length === 0) {
+      const slot = emptySlot(ownWasteActive ? '↓' : '');
+      if (isOpponent) {
+        slot.onclick = () => { if (selectedCard) sendMove('opponentWaste'); };
+      } else if (ownWasteActive) {
+        slot.style.borderColor = 'rgba(200,168,75,0.7)';
+        slot.style.cursor = 'pointer';
+        slot.onclick = sendEndTurn;
+      }
+      el.appendChild(slot);
+      return;
+    }
+
+    const top = pile.at(-1);
+    let clickFn = null;
+    if (isOpponent) {
+      clickFn = () => { if (selectedCard) sendMove('opponentWaste'); };
+    } else if (ownWasteActive) {
+      clickFn = sendEndTurn;
+    }
+
+    const cardEl = makeCard(top, clickFn);
+
+    if (!isOpponent) {
+      if (ownWasteActive) {
+        // Highlight as end-turn target — remove grey, add gold ring
+        cardEl.style.boxShadow =
+          '0 0 0 2px var(--gold), 0 0 14px 3px rgba(200,168,75,0.5)';
+        cardEl.style.cursor = 'pointer';
+      } else {
+        cardEl.classList.add('waste-card');
+      }
+    }
+
+    const badge = document.createElement('div');
+    badge.className = `deck-badge d${top.deckOwner}`;
+    badge.textContent = top.deckOwner;
+    cardEl.appendChild(badge);
+
+    if (pile.length > 1) {
+      const cnt = document.createElement('div');
+      cnt.className = 'pile-count';
+      cnt.textContent = pile.length;
+      cardEl.appendChild(cnt);
+    }
+
+    el.appendChild(cardEl);
+  }
+
+  function renderFoundations(foundations) {
+    const col1 = document.getElementById('foundation-col-1');
+    const col2 = document.getElementById('foundation-col-2');
+    col1.innerHTML = col2.innerHTML = '';
+
+    foundations.forEach((pile, i) => {
+      let el;
+      if (pile.length === 0) {
+        el = emptySlot('A');
+        el.style.cursor = 'pointer';
+        el.onclick = () => { if (selectedCard) sendMove('foundation', undefined, i); };
+      } else {
+        const top = pile.at(-1);
+        el = makeCard(top, () => { if (selectedCard) sendMove('foundation', undefined, i); });
+        const cnt = document.createElement('div');
+        cnt.className = 'pile-count';
+        cnt.textContent = `${pile.length}/13`;
+        el.appendChild(cnt);
+      }
+      el.setAttribute('data-foundation', i);
+      // Piles 0-3 go in left foundation column, 4-7 in right
+      (i < 4 ? col1 : col2).appendChild(el);
+    });
+  }
+
+  // Tableau: cols 0-3 → P1 side (fans left), cols 4-7 → P2 side (fans right)
+  function renderTableau(tableau, state) {
+    const p1El = document.getElementById('tableau-p1');
+    const p2El = document.getElementById('tableau-p2');
+    p1El.innerHTML = p2El.innerHTML = '';
+
+    // Get actual rendered card width. We use a temporary off-screen element
+    // so this works even before any cards are in the DOM.
+    let cardWpx = 72;
+    const probe = document.createElement('div');
+    probe.className = 'card';
+    probe.style.visibility = 'hidden';
+    probe.style.position   = 'fixed';
+    document.body.appendChild(probe);
+    cardWpx = probe.getBoundingClientRect().width || 72;
+    document.body.removeChild(probe);
+
+    const OFFSET = 18;
+    const me = myPlayerNumber;
+    const myStockEmpty = state.players[me].stock.length === 0;
+
+    tableau.forEach((col, i) => {
+      const isP1 = i < 4;
+      const rowEl = document.createElement('div');
+      rowEl.className = 'tableau-row-slot';
+      rowEl.setAttribute('data-tableau', i);
+
+      // Width grows as cards are added — same formula for both sides
+      const numCards = Math.max(col.length, 1);
+      const rowWidth = cardWpx + (numCards - 1) * OFFSET;
+      rowEl.style.width = rowWidth + 'px';
+
+      if (col.length === 0) {
+        const slot = emptySlot();
+        slot.style.position = 'absolute';
+        slot.style.top = '0';
+        // P1: anchor slot to right edge so it aligns with card stacks
+        if (isP1) slot.style.right = '0';
+        else       slot.style.left  = '0';
+        slot.onclick = () => {
+          if (!selectedCard) return;
+          if (selectedCard.from.type === 'activeHand' && !myStockEmpty) return;
+          sendMove('tableau', i);
+        };
+        rowEl.appendChild(slot);
+      } else {
+        col.forEach((card, j) => {
+          const isBottom = j === col.length - 1; // playable end card
+
+          let clickFn = null;
+          if (isBottom) {
+            clickFn = () => {
+              const isThisSource = selectedCard &&
+                selectedCard.from.type === 'tableau' &&
+                selectedCard.from.column === i;
+              if (selectedCard && !isThisSource) {
+                sendMove('tableau', i);
+              } else {
+                selectCard('tableau', card, i);
+              }
+            };
+          }
+
+          const cardEl = makeCard(card, clickFn);
+          cardEl.style.position = 'absolute';
+          cardEl.style.top = '0';
+
+          if (isP1) {
+            // P1 fans LEFT: base card (j=0, highest rank) at RIGHT edge.
+            // Each new card (lower rank, higher j) sits further LEFT and on TOP.
+            // right=0 → rightmost (base), right=OFFSET → one step left, etc.
+            cardEl.style.right = (j * OFFSET) + 'px';
+            cardEl.style.zIndex = j + 1; // newest card on top, same as P2
+          } else {
+            // P2 fans RIGHT: base card (j=0) at LEFT edge.
+            // Each new card further right and on top.
+            cardEl.style.left = (j * OFFSET) + 'px';
+            cardEl.style.zIndex = j + 1;
+          }
+
+          if (isBottom && selectedCard &&
+              selectedCard.from.type === 'tableau' &&
+              selectedCard.from.column === i) {
+            cardEl.classList.add('selected');
+          }
+
+          rowEl.appendChild(cardEl);
+        });
+
+        // Hover tooltip: lists all cards in the column bottom→top
+        if (col.length > 1) {
+          const tip = document.createElement('div');
+          tip.className = 'card-tooltip';
+          const SUIT_SYM = { hearts:'♥', diamonds:'♦', clubs:'♣', spades:'♠' };
+          const RANK_N   = { 1:'A', 11:'J', 12:'Q', 13:'K' };
+          const lines = col.map(c => {
+            const r = RANK_N[c.rank] || String(c.rank);
+            const s = SUIT_SYM[c.suit] || c.suit;
+            const colour = (c.suit==='hearts'||c.suit==='diamonds') ? '#e74c3c' : '#f0e6c8';
+            return `<span style="color:${colour}">${r}${s}</span>`;
+          });
+          // Show from bottom of column (first dealt) → top (playable end)
+          tip.innerHTML = lines.join(' → ');
+          // Position tooltip on the appropriate side so it doesn't go off-screen
+          if (isP1) {
+            tip.style.left  = 'auto';
+            tip.style.right = '0';
+            tip.style.transform = 'none';
+          }
+          rowEl.appendChild(tip);
+        }
+      }
+
+      (isP1 ? p1El : p2El).appendChild(rowEl);
+    });
+  }
+
+  // ===========================================================================
+  // CARD FACTORY
+  // ===========================================================================
+
+  function makeCard(card, clickFn) {
+    const el = document.createElement('div');
+    el.className = 'card';
+
+    if (!card.faceUp) {
+      el.classList.add('face-down');
+      // Deck 2 gets a red back; deck 1 keeps the default blue back
+      if (card.deckOwner === 2) el.classList.add('deck2-back');
+      if (clickFn) el.onclick = clickFn;
+      return el;
+    }
+
+    el.classList.add(isRed(card.suit) ? 'red' : 'black');
+    const r = rl(card.rank);
+    const s = SUITS[card.suit];
+    el.innerHTML = `
+      <div class="card-corner tl">${r}<br>${s}</div>
+      <div class="card-suit-big">${s}</div>
+      <div class="card-corner br">${r}<br>${s}</div>
+    `;
+    if (clickFn) el.onclick = clickFn;
+    return el;
+  }
+
+  function emptySlot(label = '') {
+    const el = document.createElement('div');
+    el.className = 'card-slot';
+    if (label) el.textContent = label;
+    return el;
+  }
+
+  // ===========================================================================
+  // BUTTONS & STATUS
+  // ===========================================================================
+
+  function updateButtons(state) {
+    const me      = myPlayerNumber;
+    const myTurn  = state.turn.player === me;
+    const playing = state.phase === 'playing';
+    const noMove  = !state.turn.cardMoved;
+    const hasAct  = state.turn.activeHandCard !== null;
+    const anyAct  = ['playing','pendingRedeal','pendingCycle'].includes(state.phase);
+
+    // Cycle/Redeal: only before any card has moved this turn
+    btn('btn-cycle',   myTurn && playing && noMove && !state.turn.cycleUsed);
+    btn('btn-redeal',  myTurn && playing && noMove && !state.turn.redalUsed);
+    // End Turn: available whenever it's your turn and there's an active card to discard
+    btn('btn-end',     myTurn && playing && hasAct);
+    btn('btn-forfeit', myTurn && anyAct);
+
+    // Active-turn border highlight
+    const gMine = document.getElementById('group-mine');
+    const gOpp  = document.getElementById('group-opponent');
+    if (gMine && gOpp) {
+      gMine.classList.toggle('active-turn', myTurn && playing);
+      gOpp.classList.toggle('active-turn', !myTurn && playing);
+    }
+  }
+
+  function btn(id, enabled) {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !enabled;
+  }
+
+  function updateStatus(state) {
+    const myStatus  = document.getElementById('my-status');
+    const oppStatus = document.getElementById('opp-status');
+    const dot       = document.getElementById('my-turn-dot');
+    if (!myStatus || !oppStatus) return;
+
+    const myTurn = state.turn.player === myPlayerNumber;
+    const hasAct = state.turn.activeHandCard !== null;
+
+    myStatus.className  = 'zone-status';
+    oppStatus.className = 'zone-status';
+
+    if (state.phase === 'playing') {
+      if (myTurn) {
+        dot.classList.remove('off');
+        myStatus.classList.add('your-turn');
+        myStatus.textContent = hasAct && !state.turn.cardMoved
+          ? 'Your turn — play your active card, or End Turn to pass'
+          : 'Keep playing, or End Turn to discard active card';
+        oppStatus.textContent = '';
+      } else {
+        dot.classList.add('off');
+        myStatus.textContent  = '';
+        oppStatus.textContent = "Opponent's turn";
+      }
+    } else if (state.phase === 'pendingRedeal') {
+      dot.classList.add('off');
+      myStatus.textContent = state.pendingRequest.requestedBy === myPlayerNumber
+        ? 'Re-deal requested — waiting for opponent...'
+        : 'Opponent requests a re-deal';
+    } else if (state.phase === 'pendingCycle') {
+      dot.classList.add('off');
+      myStatus.textContent = state.pendingRequest.requestedBy === myPlayerNumber
+        ? 'Stock Cycle requested — waiting for opponent...'
+        : 'Opponent requests a Stock Cycle';
+    }
+  }
+
+  function setStatus(msg, type = '') {
+    const el = document.getElementById('my-status');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'zone-status' + (type ? ` ${type}` : '');
+  }
+
+  // ===========================================================================
+  // MODAL
+  // ===========================================================================
+
+  function showModal(title, body, buttons) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-body').textContent  = body;
+    const btnsEl = document.getElementById('modal-btns');
+    btnsEl.innerHTML = '';
+    buttons.forEach(({ label, cls, action }) => {
+      const b = document.createElement('button');
+      b.textContent = label; b.className = cls; b.onclick = action;
+      btnsEl.appendChild(b);
+    });
+    document.getElementById('modal-overlay').classList.add('active');
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('active');
+  }
+
+  function showPendingModal(title, body) {
+    const isRequester = gameState.pendingRequest.requestedBy === myPlayerNumber;
+    if (isRequester) {
+      showModal(title, 'Request sent — waiting for opponent...', [
+        { label:'Cancel', cls:'btn-no', action: () => respondToRequest(false) }
+      ]);
+    } else {
+      showModal(title, body, [
+        { label:'Yes', cls:'btn-yes', action: () => respondToRequest(true)  },
+        { label:'No',  cls:'btn-no',  action: () => respondToRequest(false) },
+      ]);
+    }
+  }
+
+  // ===========================================================================
+  // WIDESCREEN TOGGLE
+  // ===========================================================================
+
+  let widesreenMode = false;
+
+  function toggleView() {
+    widesreenMode = !widesreenMode;
+    document.body.classList.toggle('widescreen', widesreenMode);
+    const btn = document.getElementById('btn-view-toggle');
+    if (btn) btn.textContent = widesreenMode ? '⇔ Standard' : '⇔ Widescreen';
+    // Re-render so stock fans and tableau recompute card widths
+    if (gameState) render(gameState);
+  }
+
+  // ===========================================================================
+  // SCREENS
+  // ===========================================================================
+
+  function showScreen(name) {
+    document.querySelectorAll('.screen')
+      .forEach(s => s.classList.remove('active'));
+    document.getElementById(`screen-${name}`).classList.add('active');
+  }
+
+  function showGameOver(state) {
+    const won = state.winner === myPlayerNumber;
+    document.getElementById('gameover-title').textContent =
+      won ? '🏆 Victory!' : 'Defeat';
+    document.getElementById('gameover-message').textContent = won
+      ? 'Congratulations — you emptied your piles first!'
+      : `Player ${state.winner} wins. Better luck next time!`;
+    showScreen('gameover');
+  }
+
+  </script>
+</body>
+</html>
