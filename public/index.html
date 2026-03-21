@@ -777,7 +777,7 @@
     </div>
   </div>
 
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
   <script>
   'use strict';
 
@@ -785,7 +785,7 @@
   // STATE
   // ===========================================================================
 
-  const socket = io();
+  const socket = io({ transports: ['polling'] });
 
   let myPlayerNumber = null;
   let gameState      = null;
@@ -1489,6 +1489,14 @@
     document.querySelectorAll('.screen')
       .forEach(s => s.classList.remove('active'));
     document.getElementById(`screen-${name}`).classList.add('active');
+    // In widescreen mode body.widescreen forces #screen-game to display:grid
+    // regardless of the active class. Remove it when leaving the game screen
+    // so game-over / waiting screens aren't obscured.
+    if (name !== 'game') {
+      document.body.classList.remove('widescreen');
+    } else if (widesreenMode) {
+      document.body.classList.add('widescreen');
+    }
   }
 
   function showGameOver(state) {
