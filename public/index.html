@@ -787,6 +787,16 @@
 
   const socket = io({ transports: ['polling'] });
 
+  socket.on('connect', () => {
+  document.getElementById('waiting-message').textContent = 
+    'Socket connected! ID: ' + socket.id;
+});
+
+socket.on('connect_error', (err) => {
+  document.getElementById('waiting-message').textContent = 
+    'Connection error: ' + err.message;
+});
+
   let myPlayerNumber = null;
   let gameState      = null;
   let selectedCard   = null; // { from: {type, column?}, card }
