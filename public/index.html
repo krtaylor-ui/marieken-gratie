@@ -627,9 +627,28 @@
     .card.face-down:hover { transform: none; box-shadow: var(--shadow); }
 
     /* =========================================================
-       FACE CARDS — all rendered as inline SVG via JS
-       .face-card-svg fills the card div completely
+       FLYING CARD ANIMATION
+       A single absolutely-positioned card that flies across
+       the screen between moves. z-index above everything.
        ========================================================= */
+    #flying-card {
+      position: fixed;
+      pointer-events: none;
+      z-index: 1000;
+      border-radius: var(--card-r);
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+      transition: transform 250ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                  opacity   250ms ease;
+      will-change: transform, opacity;
+      /* Start hidden */
+      opacity: 0;
+      display: none;
+    }
+    #flying-card.animating {
+      display: block;
+    }
     .face-card-svg {
       position: absolute;
       inset: 0;
@@ -828,7 +847,10 @@
     </div>
   </div>
 
-  <script src="/socket.io/socket.io.js"></script>
+  <!-- FLYING CARD — animation overlay, managed entirely by JS -->
+  <div id="flying-card"></div>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
   'use strict';
 
@@ -989,6 +1011,192 @@
   const oppNum = p    => p === 1 ? 2 : 1;
 
   // ===========================================================================
+  // ANIMATION ENGINE
+  // Queue-based flying card system. Each state update is queued; animations
+  // play one at a time (250ms each), then the final state renders.
+  // ===========================================================================
+
+  const ANIM_DURATION = 250; // ms
+
+  // Each queue item: { state, lastEvent, lastMove, wasMine }
+  const animQueue = [];
+  let   animBusy  = false;
+
+  // Entry point — called by gameStateUpdate instead of render directly
+  function enqueueUpdate(state, lastEvent, lastMove, wasMine) {
+    animQueue.push({ state, lastEvent, lastMove, wasMine });
+    if (!animBusy) drainQueue();
+  }
+
+  function drainQueue() {
+    if (animQueue.length === 0) { animBusy = false; return; }
+    animBusy = true;
+    const item = animQueue.shift();
+    processUpdate(item);
+  }
+
+  function processUpdate({ state, lastEvent, lastMove, wasMine }) {
+    playSoundForEvent(lastEvent, state, wasMine);
+
+    // Non-move events (turnEnd with no card, gameOver, etc.)
+    // — still animate if there's a lastMove, otherwise just render
+    if (lastMove && lastMove.card) {
+      animateMove(lastMove, state, () => {
+        applyStateUpdate(state, lastEvent);
+        setTimeout(drainQueue, 0);
+      });
+    } else {
+      applyStateUpdate(state, lastEvent);
+      setTimeout(drainQueue, 0);
+    }
+  }
+
+  // Render the state and handle screen transitions
+  function applyStateUpdate(state, lastEvent) {
+    gameState    = state;
+    selectedCard = null;
+
+    if (state.phase === 'gameOver')      { showGameOver(state); return; }
+    if (state.phase === 'pendingRedeal') {
+      showPendingModal('Re-deal Request', 'Your opponent wants to re-deal. Do you agree?');
+      return;
+    }
+    if (state.phase === 'pendingCycle')  {
+      showPendingModal('Stock Cycle Request', 'Your opponent wants to cycle the stock piles. Do you agree?');
+      return;
+    }
+    closeModal();
+    render(state);
+    showScreen('game');
+  }
+
+  // Fly a card from source pile to destination pile, call done() when finished.
+  function animateMove(lastMove, state, done) {
+    const fromEl = getPileElement(lastMove.from, lastMove.player, state);
+    const toEl   = getPileElement(lastMove.to,   lastMove.player, state);
+
+    if (!fromEl || !toEl) { done(); return; }
+
+    const fromRect = fromEl.getBoundingClientRect();
+    const toRect   = toEl.getBoundingClientRect();
+
+    // Don't animate zero-distance moves
+    if (Math.abs(fromRect.left - toRect.left) < 2 &&
+        Math.abs(fromRect.top  - toRect.top)  < 2) {
+      done(); return;
+    }
+
+    const flyEl = document.getElementById('flying-card');
+    if (!flyEl) { done(); return; }
+
+    // Size the flying card to match actual card dimensions
+    const w = fromRect.width  || 70;
+    const h = fromRect.height || 100;
+    flyEl.style.width  = w + 'px';
+    flyEl.style.height = h + 'px';
+
+    // Render the card face inside the flyer
+    const card = lastMove.card;
+    if (card.faceUp) {
+      const colour = isRed(card.suit) ? 'red' : 'black';
+      flyEl.className = `card ${colour} animating`;
+      flyEl.innerHTML = buildCardSVG(card.rank, card.suit);
+    } else {
+      flyEl.className = `card face-down animating${card.deckOwner === 2 ? ' deck2-back' : ''}`;
+      flyEl.innerHTML = '';
+    }
+
+    // Position at source — use transform so transition works
+    flyEl.style.left      = fromRect.left + 'px';
+    flyEl.style.top       = fromRect.top  + 'px';
+    flyEl.style.transform = 'translate(0,0)';
+    flyEl.style.opacity   = '1';
+    flyEl.style.transition = 'none';
+
+    // Force reflow so the starting position is painted before we add transition
+    flyEl.getBoundingClientRect();
+
+    // Animate to destination
+    const dx = toRect.left - fromRect.left;
+    const dy = toRect.top  - fromRect.top;
+    flyEl.style.transition = `transform ${ANIM_DURATION}ms cubic-bezier(0.25,0.46,0.45,0.94),
+                               opacity ${ANIM_DURATION}ms ease`;
+    flyEl.style.transform  = `translate(${dx}px,${dy}px)`;
+    flyEl.style.opacity    = '0.92';
+
+    setTimeout(() => {
+      // Hide flying card
+      flyEl.style.opacity = '0';
+      flyEl.classList.remove('animating');
+      flyEl.innerHTML = '';
+      done();
+    }, ANIM_DURATION);
+  }
+
+  // Map a move's from/to descriptor to the actual DOM element for that pile.
+  // Returns the element whose getBoundingClientRect() gives us the animation target.
+  function getPileElement(loc, movingPlayer, state) {
+    const me = myPlayerNumber;
+    const op = oppNum(me);
+
+    // Is the moving player "me" from this client's perspective?
+    const moverIsMe = movingPlayer === me;
+
+    switch (loc.type) {
+      case 'stock':
+        return document.getElementById(moverIsMe ? 'my-stock' : 'opp-stock');
+
+      case 'activeHand':
+        return document.getElementById(moverIsMe ? 'my-active' : 'opp-active');
+
+      case 'waste':
+        // endTurn sends active→waste for the moving player
+        return document.getElementById(moverIsMe ? 'my-waste' : 'opp-waste');
+
+      case 'opponentStock':
+        // Moving player is playing onto THEIR opponent's stock.
+        // If mover is me → it lands on opp-stock. If mover is opp → it lands on my-stock.
+        return document.getElementById(moverIsMe ? 'opp-stock' : 'my-stock');
+
+      case 'opponentWaste':
+        return document.getElementById(moverIsMe ? 'opp-waste' : 'my-waste');
+
+      case 'foundation': {
+        const col = loc.pile < 4
+          ? document.getElementById('foundation-col-1')
+          : document.getElementById('foundation-col-2');
+        if (!col) return null;
+        // Find the specific foundation slot
+        const slots = col.querySelectorAll('[data-foundation]');
+        for (const s of slots) {
+          if (parseInt(s.dataset.foundation) === loc.pile) return s;
+        }
+        return col; // fallback to column
+      }
+
+      case 'tableau': {
+        const col = loc.column;
+        const side = col < 4
+          ? document.getElementById('tableau-p1')
+          : document.getElementById('tableau-p2');
+        if (!side) return null;
+        const rows = side.querySelectorAll('[data-tableau]');
+        for (const r of rows) {
+          if (parseInt(r.dataset.tableau) === col) {
+            // Return the last (topmost) card in the row, or the row itself
+            const cards = r.querySelectorAll('.card');
+            return cards.length ? cards[cards.length - 1] : r;
+          }
+        }
+        return side;
+      }
+
+      default:
+        return null;
+    }
+  }
+
+  // ===========================================================================
   // SOCKET EVENTS
   // ===========================================================================
 
@@ -1013,27 +1221,13 @@
 
   socket.on('gameStateUpdate', (state) => {
     const lastEvent = state.lastEvent || 'update';
-    // wasMine: was it MY turn when the action happened?
-    // Before updating gameState, check who the current turn belongs to.
-    const wasMine = gameState
+    const lastMove  = state.lastMove  || null;
+    const wasMine   = gameState
       ? gameState.turn.player === myPlayerNumber
       : false;
 
-    gameState    = state;
-    selectedCard = null;
-
-    // Play sound for this event
-    playSoundForEvent(lastEvent, state, wasMine);
-
-    if (state.phase === 'gameOver')     { showGameOver(state); return; }
-    if (state.phase === 'pendingRedeal'){ showPendingModal('Re-deal Request',
-      'Your opponent wants to re-deal. Do you agree?'); return; }
-    if (state.phase === 'pendingCycle') { showPendingModal('Stock Cycle Request',
-      'Your opponent wants to cycle the stock piles. Do you agree?'); return; }
-
-    closeModal();
-    render(state);
-    showScreen('game');
+    // Don't update gameState here — the queue owns that timing
+    enqueueUpdate(state, lastEvent, lastMove, wasMine);
   });
 
   socket.on('moveRejected', ({ reason }) => {

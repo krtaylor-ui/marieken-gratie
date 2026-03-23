@@ -79,14 +79,14 @@ const playerToSocket = {};
 // =============================================================================
 
 // Send the full game state to both connected players.
-// lastEvent describes what just happened so clients can trigger sounds/animations.
-function broadcastState(lastEvent = 'update') {
-  io.emit('gameStateUpdate', { ...gameState, lastEvent });
+// lastEvent + lastMove describe what just happened for animation/sound.
+function broadcastState(lastEvent = 'update', lastMove = null) {
+  io.emit('gameStateUpdate', { ...gameState, lastEvent, lastMove });
 }
 
 // Send the state to a specific player only (e.g. after reconnect)
 function sendStateTo(playerNum) {
-  messagePlayer(playerNum, 'gameStateUpdate', { ...gameState, lastEvent: 'update' });
+  messagePlayer(playerNum, 'gameStateUpdate', { ...gameState, lastEvent: 'update', lastMove: null });
 }
 
 // Send a message to one specific player only.
@@ -94,6 +94,18 @@ function messagePlayer(playerNum, event, data) {
   const socketId = playerToSocket[playerNum];
   if (socketId) {
     io.to(socketId).emit(event, data);
+  }
+}
+
+// Get the card that will be moved by a given move (before applyMove changes state).
+function getMovingCard(move, state) {
+  const { player, from } = move;
+  const playerState = state.players[player];
+  switch (from.type) {
+    case 'stock':      return playerState.stock.at(-1) || null;
+    case 'activeHand': return state.turn.activeHandCard || null;
+    case 'tableau':    return state.tableau[from.column]?.at(-1) || null;
+    default:           return null;
   }
 }
 
@@ -269,22 +281,32 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Capture the card being moved BEFORE applyMove changes state
+    const movedCard = getMovingCard(move, gameState);
+
     const eventType = applyMove(move);
+
+    // Build lastMove descriptor for animation
+    const lastMove = {
+      card:   movedCard,
+      from:   move.from,
+      to:     move.to,
+      player: playerNum,
+    };
 
     if (checkWinCondition(playerNum, gameState)) {
       gameState.phase  = 'gameOver';
       gameState.winner = playerNum;
-      // Record final turn time
       if (gameState.turn.turnStartTime) {
         gameState.timing = gameState.timing || { 1: 0, 2: 0, turns: { 1: 0, 2: 0 } };
         gameState.timing[playerNum]       += Date.now() - gameState.turn.turnStartTime;
         gameState.timing.turns[playerNum] += 1;
       }
-      broadcastState('gameOver');
+      broadcastState('gameOver', lastMove);
       return;
     }
 
-    broadcastState(eventType);
+    broadcastState(eventType, lastMove);
   });
 
 
@@ -310,13 +332,23 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Capture active card before clearing it
+    const activeCard = gameState.turn.activeHandCard;
+
     // Send active card to waste
     playerState.waste.push(gameState.turn.activeHandCard);
     gameState.turn.activeHandCard = null;
 
+    const lastMove = {
+      card:   activeCard,
+      from:   { type: 'activeHand' },
+      to:     { type: 'waste' },
+      player: playerNum,
+    };
+
     // Advance to next player and auto-flip their opening card
     advanceTurn();
-    broadcastState("turnEnd");
+    broadcastState("turnEnd", lastMove);
   });
 
 
