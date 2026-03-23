@@ -18,8 +18,6 @@
 
 'use strict';
 
-console.log('ALL ENV VARS:', JSON.stringify(process.env));
-
 const express  = require('express');
 const http     = require('http');
 const { Server } = require('socket.io');
@@ -81,9 +79,14 @@ const playerToSocket = {};
 // =============================================================================
 
 // Send the full game state to both connected players.
-// This is called after EVERY state change.
-function broadcastState() {
-  io.emit('gameStateUpdate', gameState);
+// lastEvent describes what just happened so clients can trigger sounds/animations.
+function broadcastState(lastEvent = 'update') {
+  io.emit('gameStateUpdate', { ...gameState, lastEvent });
+}
+
+// Send the state to a specific player only (e.g. after reconnect)
+function sendStateTo(playerNum) {
+  messagePlayer(playerNum, 'gameStateUpdate', { ...gameState, lastEvent: 'update' });
 }
 
 // Send a message to one specific player only.
@@ -123,7 +126,17 @@ function autoFlipForPlayer(playerNum) {
 // Advance to the next player's turn, resetting all per-turn flags,
 // and auto-flip the opening card for the new player.
 function advanceTurn() {
+  const now       = Date.now();
   const nextPlayer = opponent(gameState.turn.player);
+
+  // Record how long this turn took
+  if (gameState.turn.turnStartTime) {
+    const elapsed = now - gameState.turn.turnStartTime;
+    gameState.timing = gameState.timing || { 1: 0, 2: 0, turns: { 1: 0, 2: 0 } };
+    gameState.timing[gameState.turn.player]       += elapsed;
+    gameState.timing.turns[gameState.turn.player] += 1;
+  }
+
   gameState.turn = {
     ...gameState.turn,
     player:          nextPlayer,
@@ -132,12 +145,13 @@ function advanceTurn() {
     cycleUsed:       false,
     redalUsed:       false,
     activeHandCard:  null,
+    turnStartTime:   now,
   };
   autoFlipForPlayer(nextPlayer);
 }
 
 // Apply a validated card move to the game state.
-// Removes card from source pile, adds to destination pile.
+// Returns an event string describing what happened (used for sounds).
 function applyMove(move) {
   const { player, from, to } = move;
   const playerState   = gameState.players[player];
@@ -148,18 +162,14 @@ function applyMove(move) {
   switch (from.type) {
     case 'stock':
       card = playerState.stock.pop();
-      // Auto-reveal the new top card of stock if any remain
       if (playerState.stock.length > 0) {
         playerState.stock.at(-1).faceUp = true;
       }
       break;
 
     case 'activeHand':
-      // Playing the active hand card — clear it, then immediately flip
-      // the next hand card so play can continue uninterrupted.
       card = gameState.turn.activeHandCard;
       gameState.turn.activeHandCard = null;
-      // Auto-flip the next card (unless hand+waste are both empty — win state)
       autoFlipForPlayer(player);
       break;
 
@@ -169,34 +179,39 @@ function applyMove(move) {
   }
 
   // --- Add card to destination ---
-  card.faceUp = true;  // all played cards are face-up
+  card.faceUp = true;
 
+  let eventType = 'cardMove';
   switch (to.type) {
     case 'foundation':
       gameState.foundations[to.pile].push(card);
+      eventType = 'cardToFoundation';
       break;
 
     case 'tableau':
       gameState.tableau[to.column].push(card);
+      eventType = 'cardMove';
       break;
 
     case 'opponentStock':
       oppState.stock.push(card);
+      eventType = 'cardToOpponent';
       break;
 
     case 'opponentWaste':
       oppState.waste.push(card);
+      eventType = 'cardToOpponent';
       break;
   }
 
-  // --- Mark that a card has moved this turn ---
   gameState.turn.cardMoved       = true;
   gameState.turn.movesThisAction += 1;
 
-  // --- Recycle waste → hand if hand is now empty (for non-activeHand moves) ---
   if (from.type !== 'activeHand') {
     recycleWaste(gameState, player);
   }
+
+  return eventType;
 }
 
 
@@ -229,9 +244,10 @@ io.on('connection', (socket) => {
     determineFirstPlayer(gameState);
     console.log(`First player: ${gameState.turn.player}`);
     gameState.phase = 'playing';
-    // Auto-flip opening card for the first player
+    gameState.timing = { 1: 0, 2: 0, turns: { 1: 0, 2: 0 } };
+    gameState.turn.turnStartTime = Date.now();
     autoFlipForPlayer(gameState.turn.player);
-    broadcastState();
+    broadcastState("gameStart");
   } else {
     // First player is waiting — let them know
     socket.emit('waiting', { message: 'Waiting for opponent to connect...' });
@@ -247,25 +263,28 @@ io.on('connection', (socket) => {
     const playerNum = socketToPlayer[socket.id];
     const move      = { player: playerNum, ...data };
 
-    // Validate
     const check = isLegalMove(move, gameState);
     if (!check.legal) {
       messagePlayer(playerNum, 'moveRejected', { reason: check.reason });
       return;
     }
 
-    // Apply
-    applyMove(move);
+    const eventType = applyMove(move);
 
-    // Check win condition
     if (checkWinCondition(playerNum, gameState)) {
       gameState.phase  = 'gameOver';
       gameState.winner = playerNum;
-      broadcastState();
+      // Record final turn time
+      if (gameState.turn.turnStartTime) {
+        gameState.timing = gameState.timing || { 1: 0, 2: 0, turns: { 1: 0, 2: 0 } };
+        gameState.timing[playerNum]       += Date.now() - gameState.turn.turnStartTime;
+        gameState.timing.turns[playerNum] += 1;
+      }
+      broadcastState('gameOver');
       return;
     }
 
-    broadcastState();
+    broadcastState(eventType);
   });
 
 
@@ -297,7 +316,7 @@ io.on('connection', (socket) => {
 
     // Advance to next player and auto-flip their opening card
     advanceTurn();
-    broadcastState();
+    broadcastState("turnEnd");
   });
 
 
@@ -318,7 +337,7 @@ io.on('connection', (socket) => {
     gameState.pendingRequest         = { type: 'redeal', requestedBy: playerNum };
     gameState.turn.redalUsed         = true;
 
-    broadcastState();
+    broadcastState("update");
   });
 
 
@@ -339,7 +358,7 @@ io.on('connection', (socket) => {
     gameState.pendingRequest = { type: 'cycle', requestedBy: playerNum };
     gameState.turn.cycleUsed = true;
 
-    broadcastState();
+    broadcastState("update");
   });
 
 
@@ -389,7 +408,7 @@ io.on('connection', (socket) => {
       console.log(`${gameState.pendingRequest?.type || 'Request'} declined — play continues`);
     }
 
-    broadcastState();
+    broadcastState("update");
   });
 
 
@@ -428,7 +447,7 @@ io.on('connection', (socket) => {
     gameState.phase  = 'gameOver';
     gameState.winner = opponent(playerNum);
     console.log(`Player ${playerNum} forfeited — Player ${gameState.winner} wins`);
-    broadcastState();
+    broadcastState("update");
   });
 
 
@@ -447,7 +466,7 @@ io.on('connection', (socket) => {
     autoFlipForPlayer(gameState.turn.player);
     console.log(`Restart by P${playerNum} — game #${gameState.gameNumber}, first player: ${gameState.turn.player}`);
     io.emit('restarted', {});
-    broadcastState();
+    broadcastState("update");
   });
 
 
@@ -466,7 +485,7 @@ io.on('connection', (socket) => {
     if (gameState && gameState.phase !== 'gameOver') {
       gameState.phase  = 'gameOver';
       gameState.winner = opponent(playerNum);
-      broadcastState();
+      broadcastState("update");
       console.log(`Player ${playerNum} disconnected mid-game — Player ${gameState.winner} wins by default`);
     }
 

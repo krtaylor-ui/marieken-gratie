@@ -678,7 +678,10 @@
         <span class="turn-dot off" id="my-turn-dot"></span>
         <span id="my-label">Player ?</span>
       </div>
-      <button class="btn-view-toggle" id="btn-view-toggle" onclick="toggleView()">⇔ Widescreen</button>
+      <div style="display:flex;gap:6px;align-items:center;margin-left:auto">
+        <button class="btn-view-toggle" id="btn-sound-toggle" onclick="toggleSound()" title="Toggle sounds">🔊</button>
+        <button class="btn-view-toggle" id="btn-view-toggle"  onclick="toggleView()">⇔ Widescreen</button>
+      </div>
     </div>
 
     <!-- Opponent zone -->
@@ -763,6 +766,14 @@
   <div id="screen-gameover" class="screen">
     <h1 id="gameover-title">Game Over</h1>
     <p  id="gameover-message"></p>
+    <div id="gameover-stats" style="
+      margin-top: 20px;
+      font-family: 'Crimson Pro', serif;
+      color: var(--text-dim);
+      font-size: 1rem;
+      line-height: 1.8;
+      text-align: center;
+    "></div>
     <button class="btn-primary" onclick="requestRestart()" style="margin-top:24px">
       Play Again
     </button>
@@ -777,7 +788,7 @@
     </div>
   </div>
 
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
   <script>
   'use strict';
 
@@ -787,19 +798,156 @@
 
   const socket = io({ transports: ['polling'] });
 
-  socket.on('connect', () => {
-  document.getElementById('waiting-message').textContent = 
-    'Socket connected! ID: ' + socket.id;
-});
-
-socket.on('connect_error', (err) => {
-  document.getElementById('waiting-message').textContent = 
-    'Connection error: ' + err.message;
-});
-
   let myPlayerNumber = null;
   let gameState      = null;
-  let selectedCard   = null; // { from: {type, column?}, card }
+  let selectedCard   = null;
+
+  // ===========================================================================
+  // SOUND ENGINE
+  // Uses Web Audio API to synthesise all sounds — no audio files needed.
+  // ===========================================================================
+
+  let audioCtx  = null;
+  let soundOn   = localStorage.getItem('soundOn') !== 'false'; // default on
+
+  function getCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Resume if suspended (browser policy requires user gesture first)
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  // Core synthesiser: plays a tone with envelope shaping
+  function playTone(freq, type, attack, sustain, release, gain = 0.18) {
+    if (!soundOn) return;
+    try {
+      const ctx  = getCtx();
+      const osc  = ctx.createOscillator();
+      const env  = ctx.createGain();
+      const now  = ctx.currentTime;
+      osc.type      = type;
+      osc.frequency.setValueAtTime(freq, now);
+      env.gain.setValueAtTime(0, now);
+      env.gain.linearRampToValueAtTime(gain, now + attack);
+      env.gain.setValueAtTime(gain, now + attack + sustain);
+      env.gain.linearRampToValueAtTime(0, now + attack + sustain + release);
+      osc.connect(env);
+      env.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + attack + sustain + release + 0.01);
+    } catch(e) {}
+  }
+
+  // Swoosh: filtered noise burst — used for card moves
+  function playSwoosh(pitch = 1.0, gain = 0.12) {
+    if (!soundOn) return;
+    try {
+      const ctx    = getCtx();
+      const buf    = ctx.createBuffer(1, ctx.sampleRate * 0.12, ctx.sampleRate);
+      const data   = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1);
+      const src    = ctx.createBufferSource();
+      src.buffer   = buf;
+      const filter = ctx.createBiquadFilter();
+      filter.type  = 'bandpass';
+      filter.frequency.setValueAtTime(800 * pitch, ctx.currentTime);
+      filter.frequency.linearRampToValueAtTime(200 * pitch, ctx.currentTime + 0.12);
+      filter.Q.value = 2;
+      const env    = ctx.createGain();
+      const now    = ctx.currentTime;
+      env.gain.setValueAtTime(gain, now);
+      env.gain.linearRampToValueAtTime(0, now + 0.12);
+      src.connect(filter);
+      filter.connect(env);
+      env.connect(ctx.destination);
+      src.start(now);
+    } catch(e) {}
+  }
+
+  const sounds = {
+    // Your card moves — light crisp swoosh
+    cardMove()       { playSwoosh(1.2, 0.10); },
+
+    // Card to foundation — satisfying higher swoosh + soft chime
+    cardToFoundation() {
+      playSwoosh(1.6, 0.11);
+      setTimeout(() => playTone(880, 'sine', 0.01, 0.08, 0.25, 0.09), 60);
+    },
+
+    // Opponent plays onto your pile — low thud + descending tone
+    cardToOpponent() {
+      playSwoosh(0.5, 0.14);
+      playTone(220, 'triangle', 0.01, 0.06, 0.22, 0.13);
+    },
+
+    // Your turn starts — gentle rising ding
+    yourTurn() {
+      playTone(523, 'sine', 0.01, 0.05, 0.3, 0.11);
+      setTimeout(() => playTone(659, 'sine', 0.01, 0.05, 0.35, 0.09), 120);
+    },
+
+    // Turn ends / card to waste
+    turnEnd() { playSwoosh(0.8, 0.08); },
+
+    // Win fanfare — ascending triad
+    win() {
+      [523, 659, 784, 1047].forEach((f, i) =>
+        setTimeout(() => playTone(f, 'sine', 0.01, 0.1, 0.4, 0.13), i * 120));
+    },
+
+    // Loss — descending tones
+    loss() {
+      [440, 349, 294, 220].forEach((f, i) =>
+        setTimeout(() => playTone(f, 'triangle', 0.01, 0.1, 0.45, 0.11), i * 140));
+    },
+  };
+
+  function toggleSound() {
+    soundOn = !soundOn;
+    localStorage.setItem('soundOn', soundOn);
+    const btn = document.getElementById('btn-sound-toggle');
+    if (btn) btn.textContent = soundOn ? '🔊' : '🔇';
+  }
+
+  // Apply sound state on load
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('btn-sound-toggle');
+    if (btn) btn.textContent = soundOn ? '🔊' : '🔇';
+  });
+
+  // Play the right sound for a game state update
+  function playSoundForEvent(lastEvent, state, prevTurnPlayer) {
+    if (!soundOn) return;
+    switch (lastEvent) {
+      case 'cardMove':
+        sounds.cardMove();
+        break;
+      case 'cardToFoundation':
+        sounds.cardToFoundation();
+        break;
+      case 'cardToOpponent':
+        // Only the recipient hears the "thud" — the sender hears their own swoosh
+        if (state.turn.player !== myPlayerNumber ||
+            state.players[myPlayerNumber].stock.length !==
+            (gameState?.players[myPlayerNumber]?.stock.length ?? 0)) {
+          sounds.cardToOpponent();
+        } else {
+          sounds.cardMove();
+        }
+        break;
+      case 'turnEnd':
+        if (state.turn.player === myPlayerNumber) sounds.yourTurn();
+        else sounds.turnEnd();
+        break;
+      case 'gameStart':
+        if (state.turn.player === myPlayerNumber) sounds.yourTurn();
+        break;
+      case 'gameOver':
+        if (state.winner === myPlayerNumber) sounds.win();
+        else sounds.loss();
+        break;
+    }
+  } // { from: {type, column?}, card }
 
   const SUITS      = { hearts:'♥', diamonds:'♦', clubs:'♣', spades:'♠' };
   const RANK_NAMES = { 1:'A', 11:'J', 12:'Q', 13:'K' };
@@ -832,9 +980,14 @@ socket.on('connect_error', (err) => {
     document.getElementById('waiting-message').textContent = reason);
 
   socket.on('gameStateUpdate', (state) => {
+    const prevState    = gameState;
+    const lastEvent    = state.lastEvent || 'update';
+    const prevTurnPlayer = prevState?.turn?.player;
     gameState = state;
-    // Successful move accepted — clear selection
     selectedCard = null;
+
+    // Play sound for this event
+    playSoundForEvent(lastEvent, state, prevTurnPlayer);
 
     if (state.phase === 'gameOver')     { showGameOver(state); return; }
     if (state.phase === 'pendingRedeal'){ showPendingModal('Re-deal Request',
@@ -1516,6 +1669,42 @@ socket.on('connect_error', (err) => {
     document.getElementById('gameover-message').textContent = won
       ? 'Congratulations — you emptied your piles first!'
       : `Player ${state.winner} wins. Better luck next time!`;
+
+    // Show timing stats if available
+    const statsEl = document.getElementById('gameover-stats');
+    if (statsEl && state.timing) {
+      const t  = state.timing;
+      const me = myPlayerNumber;
+      const op = me === 1 ? 2 : 1;
+
+      const fmt = ms => {
+        const s = Math.round(ms / 1000);
+        if (s < 60) return `${s}s`;
+        return `${Math.floor(s/60)}m ${s%60}s`;
+      };
+
+      const myAvg  = t.turns[me] > 0 ? Math.round(t[me] / t.turns[me] / 1000) : 0;
+      const oppAvg = t.turns[op] > 0 ? Math.round(t[op] / t.turns[op] / 1000) : 0;
+
+      const thinker  = t[me] > t[op] ? 'You' : 'Opponent';
+      const speedster = t[me] < t[op] ? 'You' : 'Opponent';
+
+      statsEl.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;max-width:320px;margin:0 auto">
+          <div style="color:var(--gold);text-align:right">Your think time</div>
+          <div>${fmt(t[me])} · ${t.turns[me]} turns · avg ${myAvg}s</div>
+          <div style="color:var(--gold);text-align:right">Opponent think time</div>
+          <div>${fmt(t[op])} · ${t.turns[op]} turns · avg ${oppAvg}s</div>
+          <div style="color:var(--gold);text-align:right">Deep thinker</div>
+          <div>${thinker}</div>
+          <div style="color:var(--gold);text-align:right">Speed demon</div>
+          <div>${speedster}</div>
+        </div>
+      `;
+    } else if (statsEl) {
+      statsEl.innerHTML = '';
+    }
+
     showScreen('gameover');
   }
 
