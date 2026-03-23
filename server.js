@@ -447,7 +447,7 @@ io.on('connection', (socket) => {
     gameState.phase  = 'gameOver';
     gameState.winner = opponent(playerNum);
     console.log(`Player ${playerNum} forfeited — Player ${gameState.winner} wins`);
-    broadcastState("update");
+    broadcastState("gameOver");
   });
 
 
@@ -462,11 +462,13 @@ io.on('connection', (socket) => {
 
     gameState = dealGame(null);
     determineFirstPlayer(gameState);
-    gameState.phase = 'playing';
+    gameState.phase  = 'playing';
+    gameState.timing = { 1: 0, 2: 0, turns: { 1: 0, 2: 0 } };
+    gameState.turn.turnStartTime = Date.now();
     autoFlipForPlayer(gameState.turn.player);
     console.log(`Restart by P${playerNum} — game #${gameState.gameNumber}, first player: ${gameState.turn.player}`);
     io.emit('restarted', {});
-    broadcastState("update");
+    broadcastState("gameStart");
   });
 
 

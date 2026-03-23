@@ -804,28 +804,26 @@
 
   // ===========================================================================
   // SOUND ENGINE
-  // Uses Web Audio API to synthesise all sounds — no audio files needed.
+  // Web Audio API — synthesised sounds, no files. Per-player localStorage.
   // ===========================================================================
 
-  let audioCtx  = null;
-  let soundOn   = localStorage.getItem('soundOn') !== 'false'; // default on
+  let audioCtx = null;
+  let soundOn  = localStorage.getItem('soundOn') !== 'false'; // default on
 
   function getCtx() {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    // Resume if suspended (browser policy requires user gesture first)
     if (audioCtx.state === 'suspended') audioCtx.resume();
     return audioCtx;
   }
 
-  // Core synthesiser: plays a tone with envelope shaping
-  function playTone(freq, type, attack, sustain, release, gain = 0.18) {
+  function playTone(freq, type, attack, sustain, release, gain = 0.15) {
     if (!soundOn) return;
     try {
-      const ctx  = getCtx();
-      const osc  = ctx.createOscillator();
-      const env  = ctx.createGain();
-      const now  = ctx.currentTime;
-      osc.type      = type;
+      const ctx = getCtx();
+      const osc = ctx.createOscillator();
+      const env = ctx.createGain();
+      const now = ctx.currentTime;
+      osc.type = type;
       osc.frequency.setValueAtTime(freq, now);
       env.gain.setValueAtTime(0, now);
       env.gain.linearRampToValueAtTime(gain, now + attack);
@@ -838,7 +836,6 @@
     } catch(e) {}
   }
 
-  // Swoosh: filtered noise burst — used for card moves
   function playSwoosh(pitch = 1.0, gain = 0.12) {
     if (!soundOn) return;
     try {
@@ -853,8 +850,8 @@
       filter.frequency.setValueAtTime(800 * pitch, ctx.currentTime);
       filter.frequency.linearRampToValueAtTime(200 * pitch, ctx.currentTime + 0.12);
       filter.Q.value = 2;
-      const env    = ctx.createGain();
-      const now    = ctx.currentTime;
+      const env = ctx.createGain();
+      const now = ctx.currentTime;
       env.gain.setValueAtTime(gain, now);
       env.gain.linearRampToValueAtTime(0, now + 0.12);
       src.connect(filter);
@@ -865,31 +862,28 @@
   }
 
   const sounds = {
-    // Your card moves — light crisp swoosh
-    cardMove()       { playSwoosh(1.2, 0.10); },
+    // All card moves — light crisp swoosh (foundation, tableau, anywhere)
+    cardMove()    { playSwoosh(1.2, 0.10); },
 
-    // Card to foundation — satisfying higher swoosh + soft chime
-    cardToFoundation() {
-      playSwoosh(1.6, 0.11);
-      setTimeout(() => playTone(880, 'sine', 0.01, 0.08, 0.25, 0.09), 60);
+    // Card lands on YOUR stock or waste — low thud + descending tone
+    cardOnMyPile() {
+      playSwoosh(0.45, 0.16);
+      playTone(200, 'triangle', 0.01, 0.08, 0.28, 0.14);
     },
 
-    // Opponent plays onto your pile — low thud + descending tone
-    cardToOpponent() {
-      playSwoosh(0.5, 0.14);
-      playTone(220, 'triangle', 0.01, 0.06, 0.22, 0.13);
-    },
-
-    // Your turn starts — gentle rising ding
+    // Your turn — two rising notes
     yourTurn() {
-      playTone(523, 'sine', 0.01, 0.05, 0.3, 0.11);
-      setTimeout(() => playTone(659, 'sine', 0.01, 0.05, 0.35, 0.09), 120);
+      playTone(523, 'sine', 0.01, 0.05, 0.28, 0.11);
+      setTimeout(() => playTone(659, 'sine', 0.01, 0.05, 0.32, 0.09), 130);
     },
 
-    // Turn ends / card to waste
-    turnEnd() { playSwoosh(0.8, 0.08); },
+    // Turn ends — two falling notes (opposite of yourTurn)
+    turnEnd() {
+      playTone(659, 'sine', 0.01, 0.05, 0.28, 0.09);
+      setTimeout(() => playTone(523, 'sine', 0.01, 0.05, 0.32, 0.08), 130);
+    },
 
-    // Win fanfare — ascending triad
+    // Win — ascending fanfare
     win() {
       [523, 659, 784, 1047].forEach((f, i) =>
         setTimeout(() => playTone(f, 'sine', 0.01, 0.1, 0.4, 0.13), i * 120));
@@ -905,49 +899,47 @@
   function toggleSound() {
     soundOn = !soundOn;
     localStorage.setItem('soundOn', soundOn);
+    updateSoundBtn();
+  }
+
+  function updateSoundBtn() {
     const btn = document.getElementById('btn-sound-toggle');
     if (btn) btn.textContent = soundOn ? '🔊' : '🔇';
   }
 
-  // Apply sound state on load
-  document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.getElementById('btn-sound-toggle');
-    if (btn) btn.textContent = soundOn ? '🔊' : '🔇';
-  });
+  // Set button icon immediately — script runs after DOM so no event needed
+  updateSoundBtn();
 
-  // Play the right sound for a game state update
-  function playSoundForEvent(lastEvent, state, prevTurnPlayer) {
-    if (!soundOn) return;
+  // wasMine: true if the turn that just ended was mine (I sent the card)
+  function playSoundForEvent(lastEvent, state, wasMine) {
     switch (lastEvent) {
+
       case 'cardMove':
+      case 'cardToFoundation':
         sounds.cardMove();
         break;
-      case 'cardToFoundation':
-        sounds.cardToFoundation();
-        break;
+
       case 'cardToOpponent':
-        // Only the recipient hears the "thud" — the sender hears their own swoosh
-        if (state.turn.player !== myPlayerNumber ||
-            state.players[myPlayerNumber].stock.length !==
-            (gameState?.players[myPlayerNumber]?.stock.length ?? 0)) {
-          sounds.cardToOpponent();
-        } else {
-          sounds.cardMove();
-        }
+        // Sender hears a swoosh; recipient hears the ominous thud
+        if (wasMine) sounds.cardMove();
+        else         sounds.cardOnMyPile();
         break;
+
       case 'turnEnd':
         if (state.turn.player === myPlayerNumber) sounds.yourTurn();
-        else sounds.turnEnd();
+        else                                       sounds.turnEnd();
         break;
+
       case 'gameStart':
         if (state.turn.player === myPlayerNumber) sounds.yourTurn();
         break;
+
       case 'gameOver':
         if (state.winner === myPlayerNumber) sounds.win();
-        else sounds.loss();
+        else                                 sounds.loss();
         break;
     }
-  } // { from: {type, column?}, card }
+  }
 
   const SUITS      = { hearts:'♥', diamonds:'♦', clubs:'♣', spades:'♠' };
   const RANK_NAMES = { 1:'A', 11:'J', 12:'Q', 13:'K' };
@@ -980,14 +972,18 @@
     document.getElementById('waiting-message').textContent = reason);
 
   socket.on('gameStateUpdate', (state) => {
-    const prevState    = gameState;
-    const lastEvent    = state.lastEvent || 'update';
-    const prevTurnPlayer = prevState?.turn?.player;
-    gameState = state;
+    const lastEvent = state.lastEvent || 'update';
+    // wasMine: was it MY turn when the action happened?
+    // Before updating gameState, check who the current turn belongs to.
+    const wasMine = gameState
+      ? gameState.turn.player === myPlayerNumber
+      : false;
+
+    gameState    = state;
     selectedCard = null;
 
     // Play sound for this event
-    playSoundForEvent(lastEvent, state, prevTurnPlayer);
+    playSoundForEvent(lastEvent, state, wasMine);
 
     if (state.phase === 'gameOver')     { showGameOver(state); return; }
     if (state.phase === 'pendingRedeal'){ showPendingModal('Re-deal Request',
