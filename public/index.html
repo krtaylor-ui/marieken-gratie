@@ -1077,8 +1077,16 @@
 
     if (!fromEl || !toEl) { done(); return; }
 
-    const fromRect = fromEl.getBoundingClientRect();
-    const toRect   = toEl.getBoundingClientRect();
+    // Find the actual top card within the pile element (not the container).
+    // Use the LAST .card in the container — for stock fans this is the topmost card.
+    // For tableau rows, the last card is the playable bottom card.
+    const fromCards = fromEl.querySelectorAll('.card');
+    const toCards   = toEl.querySelectorAll('.card');
+    const fromCard  = fromCards.length ? fromCards[fromCards.length - 1] : fromEl;
+    const toCard    = toCards.length   ? toCards[toCards.length - 1]     : toEl;
+
+    const fromRect = fromCard.getBoundingClientRect();
+    const toRect   = toCard.getBoundingClientRect();
 
     // Don't animate zero-distance moves
     if (Math.abs(fromRect.left - toRect.left) < 2 &&
@@ -1089,7 +1097,10 @@
     const flyEl = document.getElementById('flying-card');
     if (!flyEl) { done(); return; }
 
-    // Size the flying card to match actual card dimensions
+    // Hide the source card immediately so it doesn't ghost during animation
+    fromCard.style.visibility = 'hidden';
+
+    // Size the flying card to match a single card (use fromRect which is now a .card)
     const w = fromRect.width  || 70;
     const h = fromRect.height || 100;
     flyEl.style.width  = w + 'px';
@@ -1097,34 +1108,36 @@
 
     // Render the card face inside the flyer
     const card = lastMove.card;
-    if (card.faceUp) {
+    if (card && card.faceUp) {
       const colour = isRed(card.suit) ? 'red' : 'black';
       flyEl.className = `card ${colour} animating`;
       flyEl.innerHTML = buildCardSVG(card.rank, card.suit);
     } else {
-      flyEl.className = `card face-down animating${card.deckOwner === 2 ? ' deck2-back' : ''}`;
+      flyEl.className = `card face-down animating${card && card.deckOwner === 2 ? ' deck2-back' : ''}`;
       flyEl.innerHTML = '';
     }
 
-    // Position at source — use transform so transition works
-    flyEl.style.left      = fromRect.left + 'px';
-    flyEl.style.top       = fromRect.top  + 'px';
-    flyEl.style.transform = 'translate(0,0)';
-    flyEl.style.opacity   = '1';
+    // Position at source
+    flyEl.style.left       = fromRect.left + 'px';
+    flyEl.style.top        = fromRect.top  + 'px';
+    flyEl.style.transform  = 'translate(0,0)';
+    flyEl.style.opacity    = '1';
     flyEl.style.transition = 'none';
 
-    // Force reflow so the starting position is painted before we add transition
+    // Force reflow so starting position paints before transition begins
     flyEl.getBoundingClientRect();
 
     // Animate to destination
     const dx = toRect.left - fromRect.left;
     const dy = toRect.top  - fromRect.top;
     flyEl.style.transition = `transform ${ANIM_DURATION}ms cubic-bezier(0.25,0.46,0.45,0.94),
-                               opacity ${ANIM_DURATION}ms ease`;
+                               opacity   ${ANIM_DURATION}ms ease`;
     flyEl.style.transform  = `translate(${dx}px,${dy}px)`;
     flyEl.style.opacity    = '0.92';
 
     setTimeout(() => {
+      // Restore source card visibility (state re-render will replace it anyway)
+      fromCard.style.visibility = '';
       // Hide flying card
       flyEl.style.opacity = '0';
       flyEl.classList.remove('animating');
@@ -1133,11 +1146,10 @@
     }, ANIM_DURATION);
   }
 
-  // Map a move's from/to descriptor to the actual DOM element for that pile.
-  // Returns the element whose getBoundingClientRect() gives us the animation target.
+  // Map a move's from/to descriptor to the pile CONTAINER element.
+  // animateMove drills into it to find the top card via querySelector.
   function getPileElement(loc, movingPlayer, state) {
     const me = myPlayerNumber;
-    const op = oppNum(me);
 
     // Is the moving player "me" from this client's perspective?
     const moverIsMe = movingPlayer === me;
@@ -1150,12 +1162,9 @@
         return document.getElementById(moverIsMe ? 'my-active' : 'opp-active');
 
       case 'waste':
-        // endTurn sends active→waste for the moving player
         return document.getElementById(moverIsMe ? 'my-waste' : 'opp-waste');
 
       case 'opponentStock':
-        // Moving player is playing onto THEIR opponent's stock.
-        // If mover is me → it lands on opp-stock. If mover is opp → it lands on my-stock.
         return document.getElementById(moverIsMe ? 'opp-stock' : 'my-stock');
 
       case 'opponentWaste':
@@ -1166,27 +1175,22 @@
           ? document.getElementById('foundation-col-1')
           : document.getElementById('foundation-col-2');
         if (!col) return null;
-        // Find the specific foundation slot
         const slots = col.querySelectorAll('[data-foundation]');
         for (const s of slots) {
           if (parseInt(s.dataset.foundation) === loc.pile) return s;
         }
-        return col; // fallback to column
+        return col;
       }
 
       case 'tableau': {
-        const col = loc.column;
-        const side = col < 4
+        const colIdx = loc.column;
+        const side = colIdx < 4
           ? document.getElementById('tableau-p1')
           : document.getElementById('tableau-p2');
         if (!side) return null;
         const rows = side.querySelectorAll('[data-tableau]');
         for (const r of rows) {
-          if (parseInt(r.dataset.tableau) === col) {
-            // Return the last (topmost) card in the row, or the row itself
-            const cards = r.querySelectorAll('.card');
-            return cards.length ? cards[cards.length - 1] : r;
-          }
+          if (parseInt(r.dataset.tableau) === colIdx) return r;
         }
         return side;
       }
