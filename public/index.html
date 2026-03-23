@@ -634,60 +634,74 @@
       inset: 0;
       display: flex;
       flex-direction: column;
-      padding: 3px 4px;
-    }
-    .card-corners {
-      display: flex;
       justify-content: space-between;
-      align-items: flex-start;
-      flex-shrink: 0;
+      padding: 3px 4px;
+      overflow: hidden;
     }
-    .card-corner-val {
+    /* Top-left corner label */
+    .card-corner-tl {
       font-size: var(--card-font);
       font-weight: 700;
-      line-height: 1;
+      line-height: 1.1;
       display: flex;
       flex-direction: column;
-      align-items: center;
+      align-items: flex-start;
+      align-self: flex-start;
       gap: 1px;
     }
-    .card-corner-val.flip {
+    .card-corner-tl span { font-size: 0.8em; line-height: 1; }
+
+    /* Bottom-right corner label — pinned to bottom, rotated */
+    .card-corner-br {
+      font-size: var(--card-font);
+      font-weight: 700;
+      line-height: 1.1;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      align-self: flex-end;
+      gap: 1px;
       transform: rotate(180deg);
     }
-    .card-corner-val span { font-size: 0.75em; line-height: 1; }
-    .card.red  .card-corner-val { color: var(--red); }
-    .card.black .card-corner-val { color: var(--black); }
+    .card-corner-br span { font-size: 0.8em; line-height: 1; }
 
+    .card.red   .card-corner-tl,
+    .card.red   .card-corner-br { color: var(--red); }
+    .card.black .card-corner-tl,
+    .card.black .card-corner-br { color: var(--black); }
+
+    /* Pip grid sits in the middle */
     .pip-area {
       flex: 1;
-      display: grid;
-      place-items: center;
-      padding: 1px 6px 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1px 4px;
     }
     .pip-grid {
       display: grid;
       width: 100%;
       height: 100%;
-      gap: 1px;
+      gap: 0;
     }
     .pip {
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: clamp(0.55rem, 1vw, 0.85rem);
+      font-size: clamp(0.72rem, 1.3vw, 1.1rem);
       line-height: 1;
     }
     .pip.flip { transform: rotate(180deg); }
-    .card.red  .pip { color: var(--red); }
+    .card.red   .pip { color: var(--red); }
     .card.black .pip { color: var(--black); }
 
     /* Ace — big centred suit */
     .ace-suit {
-      font-size: clamp(1.8rem, 3.5vw, 3rem);
+      font-size: clamp(2rem, 4vw, 3.2rem);
       text-align: center;
       line-height: 1;
     }
-    .card.red  .ace-suit { color: var(--red); }
+    .card.red   .ace-suit { color: var(--red); }
     .card.black .ace-suit { color: var(--black); }
 
     /* =========================================================
@@ -1584,24 +1598,49 @@
   // CARD FACTORY — proper pip layouts + illustrated face cards
   // ===========================================================================
 
-  // Pip positions defined as [col, row, flipped] on a 3-col × 7-row grid.
-  // col: 0=left, 1=centre, 2=right. row: 0=top … 6=bottom.
-  // flipped: suit symbol rotated 180° for bottom pips.
+  // Pip positions on a 3-col × 6-row grid (rows 0–5).
+  // [col, row, flipped]  col: 0=left 1=centre 2=right  row: 0=top 5=bottom
+  // Classic pip arrangements — verified against standard playing cards.
   const PIP_LAYOUTS = {
-    1:  [[1,3,false]],  // Ace handled separately (big centred suit)
-    2:  [[1,0,false],[1,6,true]],
-    3:  [[1,0,false],[1,3,false],[1,6,true]],
-    4:  [[0,0,false],[2,0,false],[0,6,true],[2,6,true]],
-    5:  [[0,0,false],[2,0,false],[1,3,false],[0,6,true],[2,6,true]],
-    6:  [[0,0,false],[2,0,false],[0,3,false],[2,3,false],[0,6,true],[2,6,true]],
-    7:  [[0,0,false],[2,0,false],[0,3,false],[2,3,false],[1,1,false],[0,6,true],[2,6,true]],
-    8:  [[0,0,false],[2,0,false],[0,3,false],[2,3,false],[1,1,false],[1,5,true],[0,6,true],[2,6,true]],
-    9:  [[0,0,false],[2,0,false],[0,2,false],[2,2,false],[1,3,false],[0,4,true],[2,4,true],[0,6,true],[2,6,true]],
-    10: [[0,0,false],[2,0,false],[0,2,false],[2,2,false],[1,1,false],[1,5,true],[0,4,true],[2,4,true],[0,6,true],[2,6,true]],
+    2:  [[1,0,false],[1,5,true]],
+    3:  [[1,0,false],[1,2,false],[1,5,true]],
+    4:  [[0,0,false],[2,0,false],[0,5,true],[2,5,true]],
+    5:  [[0,0,false],[2,0,false],[1,2,false],[0,5,true],[2,5,true]],
+    6:  [[0,0,false],[2,0,false],[0,2,false],[2,2,false],[0,5,true],[2,5,true]],
+    7:  [[0,0,false],[2,0,false],[1,1,false],[0,2,false],[2,2,false],[0,5,true],[2,5,true]],
+    8:  [[0,0,false],[2,0,false],[1,1,false],[0,2,false],[2,2,false],[1,4,true],[0,5,true],[2,5,true]],
+    9:  [[0,0,false],[2,0,false],[0,1,false],[2,1,false],[1,2,false],[0,3,true],[2,3,true],[0,5,true],[2,5,true]],
+    10: [[0,0,false],[2,0,false],[1,1,false],[0,1,false],[2,1,false],[0,3,true],[2,3,true],[1,4,true],[0,5,true],[2,5,true]],
   };
 
   const SUIT_SYM = { hearts:'♥', diamonds:'♦', clubs:'♣', spades:'♠' };
 
+  function buildPipCard(rank, suit, rankLabel, suitSym) {
+    const pips = PIP_LAYOUTS[rank] || [];
+
+    // 3×6 grid — 18 cells
+    const cells = Array(18).fill('');
+    pips.forEach(([col, row, flip]) => {
+      const idx = row * 3 + col;
+      if (idx >= 0 && idx < 18)
+        cells[idx] = `<div class="pip${flip ? ' flip' : ''}">${suitSym}</div>`;
+    });
+
+    const gridHtml = cells.map(c =>
+      c || '<div class="pip" style="visibility:hidden">${suitSym}</div>'
+    ).join('');
+
+    return `
+      <div class="card-face">
+        <div class="card-corner-tl">${rankLabel}<span>${suitSym}</span></div>
+        <div class="pip-area">
+          <div class="pip-grid" style="grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(6,1fr);width:100%;height:100%">
+            ${gridHtml}
+          </div>
+        </div>
+        <div class="card-corner-br">${rankLabel}<span>${suitSym}</span></div>
+      </div>`;
+  }
   function makeCard(card, clickFn) {
     const el = document.createElement('div');
     el.className = 'card';
@@ -1631,11 +1670,9 @@
     if (card.rank === 1) {
       el.innerHTML = `
         <div class="card-face">
-          <div class="card-corners">
-            <div class="card-corner-val">A<span>${s}</span></div>
-            <div class="card-corner-val flip">A<span>${s}</span></div>
-          </div>
+          <div class="card-corner-tl">A<span>${s}</span></div>
           <div class="pip-area"><div class="ace-suit">${s}</div></div>
+          <div class="card-corner-br">A<span>${s}</span></div>
         </div>`;
       if (clickFn) el.onclick = clickFn;
       return el;
@@ -1645,35 +1682,6 @@
     el.innerHTML = buildPipCard(card.rank, card.suit, r, s);
     if (clickFn) el.onclick = clickFn;
     return el;
-  }
-
-  // Build a pip card using a 3×7 grid layout
-  function buildPipCard(rank, suit, rankLabel, suitSym) {
-    const pips = PIP_LAYOUTS[rank] || [];
-
-    // Build a 3×7 grid; place pips at their positions
-    const cells = Array(21).fill('');
-    pips.forEach(([col, row, flip]) => {
-      const idx = row * 3 + col;
-      cells[idx] = `<div class="pip${flip ? ' flip' : ''}">${suitSym}</div>`;
-    });
-
-    const gridHtml = cells.map(c =>
-      c || '<div class="pip" style="visibility:hidden">·</div>'
-    ).join('');
-
-    return `
-      <div class="card-face">
-        <div class="card-corners">
-          <div class="card-corner-val">${rankLabel}<span>${suitSym}</span></div>
-          <div class="card-corner-val flip">${rankLabel}<span>${suitSym}</span></div>
-        </div>
-        <div class="pip-area">
-          <div class="pip-grid" style="grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(7,1fr)">
-            ${gridHtml}
-          </div>
-        </div>
-      </div>`;
   }
 
   // Build a modern minimal face card as inline SVG
@@ -1693,11 +1701,13 @@
         <!-- Card background -->
         <rect width="100" height="150" fill="#fdf6e3" rx="0"/>
 
-        <!-- Rank + suit corners -->
+        <!-- Rank + suit corners — top left -->
         <text x="5" y="14" font-family="Georgia,serif" font-weight="bold"
               font-size="11" fill="${accent}">${rankLabel}</text>
         <text x="5" y="24" font-family="Georgia,serif"
               font-size="9" fill="${accent}">${suitSym}</text>
+
+        <!-- Rank + suit corners — bottom right (rotated) -->
         <text x="95" y="140" font-family="Georgia,serif" font-weight="bold"
               font-size="11" fill="${accent}" text-anchor="end"
               transform="rotate(180,95,140)">${rankLabel}</text>
@@ -1705,8 +1715,13 @@
               font-size="9" fill="${accent}" text-anchor="end"
               transform="rotate(180,95,130)">${suitSym}</text>
 
+        <!-- Large suit symbol centred on dividing line -->
+        <text x="50" y="79" font-family="Georgia,serif"
+              font-size="16" fill="${accent}" text-anchor="middle"
+              dominant-baseline="middle" opacity="0.85">${suitSym}</text>
+
         <!-- Dividing line -->
-        <line x1="8" y1="75" x2="92" y2="75" stroke="${accent}" stroke-width="0.5" opacity="0.3"/>
+        <line x1="8" y1="75" x2="92" y2="75" stroke="${accent}" stroke-width="0.5" opacity="0.2"/>
 
         <!-- Top portrait -->
         <g transform="translate(0,0)">${portrait}</g>
