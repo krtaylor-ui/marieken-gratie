@@ -1526,21 +1526,23 @@
   const RANK_LABEL = { 1:'A', 11:'J', 12:'Q', 13:'K' };
 
   // Exact pip coordinates [x, y, rotate180] for each rank.
-  // Positions tuned against a real deck of cards.
-  // x: left=18, centre=35, right=52   y: spread across 28–72
-  const L=18, C=35, R=52;  // x columns
-  const T1=28, T2=38, T3=48, M=55, B3=62, B2=72, B1=82; // y rows (top→bottom)
+  // ViewBox is 70×100. Corners occupy ~y=0-22 (top) and ~y=78-100 (bottom).
+  // Pip body area: y=24 to y=76. With font-size=22 each pip ~16px tall.
+  // x columns: L=18, C=35, R=52
+  // y rows spread evenly across body area
+  const L=18, C=35, R=52;
+  const T1=30, T2=40, T3=50, M=50, B3=60, B2=60, B1=70;
 
   const PIPS = {
-    2:  [[C,T1,0],[C,B1,1]],
-    3:  [[C,T1,0],[C,M,0],[C,B1,1]],
-    4:  [[L,T1,0],[R,T1,0],[L,B1,1],[R,B1,1]],
-    5:  [[L,T1,0],[R,T1,0],[C,M,0],[L,B1,1],[R,B1,1]],
-    6:  [[L,T1,0],[R,T1,0],[L,M,0],[R,M,0],[L,B1,1],[R,B1,1]],
-    7:  [[L,T1,0],[R,T1,0],[C,T2,0],[L,M,0],[R,M,0],[L,B1,1],[R,B1,1]],
-    8:  [[L,T1,0],[R,T1,0],[C,T2,0],[L,M,0],[R,M,0],[C,B2,1],[L,B1,1],[R,B1,1]],
-    9:  [[L,T1,0],[R,T1,0],[L,T3,0],[R,T3,0],[C,M,0],[L,B3,1],[R,B3,1],[L,B1,1],[R,B1,1]],
-    10: [[L,T1,0],[R,T1,0],[C,T2,0],[L,T3,0],[R,T3,0],[L,B3,1],[R,B3,1],[C,B2,1],[L,B1,1],[R,B1,1]],
+    2:  [[C,32,0],[C,68,1]],
+    3:  [[C,30,0],[C,50,0],[C,70,1]],
+    4:  [[L,30,0],[R,30,0],[L,70,1],[R,70,1]],
+    5:  [[L,30,0],[R,30,0],[C,50,0],[L,70,1],[R,70,1]],
+    6:  [[L,30,0],[R,30,0],[L,50,0],[R,50,0],[L,70,1],[R,70,1]],
+    7:  [[L,30,0],[R,30,0],[C,39,0],[L,50,0],[R,50,0],[L,70,1],[R,70,1]],
+    8:  [[L,30,0],[R,30,0],[C,39,0],[L,50,0],[R,50,0],[C,61,1],[L,70,1],[R,70,1]],
+    9:  [[L,30,0],[R,30,0],[L,42,0],[R,42,0],[C,50,0],[L,58,1],[R,58,1],[L,70,1],[R,70,1]],
+    10: [[L,30,0],[R,30,0],[C,37,0],[L,42,0],[R,42,0],[L,58,1],[R,58,1],[C,63,1],[L,70,1],[R,70,1]],
   };
 
   function makeCard(card, clickFn) {
@@ -1561,55 +1563,57 @@
     return el;
   }
 
-  // Master SVG builder — routes to the right face type
+  // Master SVG builder
   function buildCardSVG(rank, suit) {
-    const sym    = SUIT_SYM[suit];
-    const lbl    = RANK_LABEL[rank] || String(rank);
-    const fill   = isRed(suit) ? '#c0392b' : '#1a1a1a';
-    const bg     = '#fdf6e3';
+    const sym  = SUIT_SYM[suit];
+    const lbl  = RANK_LABEL[rank] || String(rank);
+    const fill = isRed(suit) ? '#c0392b' : '#1a1a1a';
 
-    const base = `
+    return `
       <svg class="face-card-svg" viewBox="0 0 70 100"
-           xmlns="http://www.w3.org/2000/svg" overflow="visible">
-        <rect width="70" height="100" fill="${bg}"/>
+           xmlns="http://www.w3.org/2000/svg">
+        <rect width="70" height="100" fill="#fdf6e3"/>
         ${corners(lbl, sym, fill)}
-        ${rank >= 11 ? faceBody(rank, sym, fill) : rank === 1 ? aceBody(sym, fill) : pipBody(rank, sym, fill)}
+        ${rank >= 11 ? faceBody(rank, sym, fill)
+          : rank === 1 ? aceBody(sym, fill)
+          : pipBody(rank, sym, fill)}
       </svg>`;
-    return base;
   }
 
-  // Top-left + bottom-right rank/suit labels
+  // Corner labels — top-left normal, bottom-right rotated 180° around its OWN centre
   function corners(lbl, sym, fill) {
+    // Top-left: rank at (4,11), suit at (4,20)
+    // Bottom-right: we place text then rotate 180° around that text's position
+    // so it appears upside-down in the bottom-right corner
     return `
-      <text x="4" y="12" font-family="Georgia,serif" font-weight="bold"
-            font-size="9" fill="${fill}" text-anchor="start">${lbl}</text>
+      <text x="4" y="11" font-family="Georgia,serif" font-weight="bold"
+            font-size="9" fill="${fill}">${lbl}</text>
       <text x="4" y="20" font-family="Georgia,serif"
-            font-size="8" fill="${fill}" text-anchor="start">${sym}</text>
-      <text x="66" y="90" font-family="Georgia,serif" font-weight="bold"
+            font-size="8" fill="${fill}">${sym}</text>
+
+      <text x="66" y="91" font-family="Georgia,serif" font-weight="bold"
             font-size="9" fill="${fill}" text-anchor="end"
-            transform="rotate(180,33,50)">${lbl}</text>
+            transform="rotate(180 66 91)">${lbl}</text>
       <text x="66" y="82" font-family="Georgia,serif"
             font-size="8" fill="${fill}" text-anchor="end"
-            transform="rotate(180,33,50)">${sym}</text>`;
+            transform="rotate(180 66 82)">${sym}</text>`;
   }
 
-  // Ace — large centred suit symbol
+  // Ace — large centred suit
   function aceBody(sym, fill) {
-    return `<text x="35" y="58" font-family="Georgia,serif"
-                  font-size="36" fill="${fill}" text-anchor="middle"
+    return `<text x="35" y="56" font-family="Georgia,serif"
+                  font-size="38" fill="${fill}" text-anchor="middle"
                   dominant-baseline="middle">${sym}</text>`;
   }
 
-  // Number cards — exact pip positions
+  // Number cards — doubled pip size
   function pipBody(rank, sym, fill) {
     const positions = PIPS[rank] || [];
     return positions.map(([x, y, rot]) => {
-      const transform = rot
-        ? `transform="rotate(180,${x},${y})"`
-        : '';
+      const tf = rot ? `transform="rotate(180 ${x} ${y})"` : '';
       return `<text x="${x}" y="${y}" font-family="Georgia,serif"
-                    font-size="11" fill="${fill}" text-anchor="middle"
-                    dominant-baseline="middle" ${transform}>${sym}</text>`;
+                    font-size="16" fill="${fill}" text-anchor="middle"
+                    dominant-baseline="middle" ${tf}>${sym}</text>`;
     }).join('');
   }
 
@@ -1630,7 +1634,7 @@
   function buildPortraitSVG(rank, accent, light, sym) {
     // Shoulder pip — appears on left shoulder of top portrait
     const shoulder = `<text x="15" y="42" font-family="Georgia,serif"
-                            font-size="8" fill="${accent}" text-anchor="middle"
+                            font-size="12" fill="${accent}" text-anchor="middle"
                             dominant-baseline="middle" opacity="0.9">${sym}</text>`;
 
     if (rank === 11) { // Jack
