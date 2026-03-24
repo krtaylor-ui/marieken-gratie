@@ -59,6 +59,220 @@
     .screen { display: none; }
     .screen.active { display: flex; flex-direction: column; align-items: center; }
 
+    /* =========================================================
+       LOBBY SCREEN
+       ========================================================= */
+    #screen-lobby {
+      justify-content: flex-start;
+      min-height: 100vh;
+      padding: 40px 16px;
+      gap: 0;
+    }
+
+    .lobby-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 5vw, 3rem);
+      color: var(--gold);
+      text-shadow: 0 2px 12px rgba(200,168,75,0.4);
+      letter-spacing: 2px;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+    .lobby-tagline {
+      color: var(--text-dim);
+      font-family: 'Crimson Pro', serif;
+      font-size: clamp(0.9rem, 1.5vw, 1.1rem);
+      text-align: center;
+      margin-bottom: 36px;
+      letter-spacing: 0.5px;
+    }
+
+    .lobby-panels {
+      display: flex;
+      gap: 16px;
+      width: 100%;
+      max-width: 760px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .lobby-panel {
+      background: rgba(0,0,0,0.18);
+      border: 1px solid rgba(200,168,75,0.25);
+      border-radius: 10px;
+      padding: 24px 28px;
+      flex: 1;
+      min-width: 280px;
+      max-width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .lobby-panel h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.2rem;
+      color: var(--gold);
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+
+    .lobby-input {
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(200,168,75,0.3);
+      border-radius: 5px;
+      padding: 9px 12px;
+      color: var(--text-light);
+      font-family: 'Crimson Pro', serif;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .lobby-input:focus { border-color: var(--gold); }
+    .lobby-input::placeholder { color: var(--text-dim); }
+
+    .lobby-input.code-input {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.3rem;
+      letter-spacing: 4px;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .btn-lobby {
+      width: 100%;
+      padding: 11px;
+      background: var(--gold);
+      color: #1a1a1a;
+      border: none;
+      border-radius: 5px;
+      font-family: 'Playfair Display', serif;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-lobby:hover  { background: var(--gold-light); }
+    .btn-lobby:active { transform: scale(0.98); }
+    .btn-lobby:disabled { background: rgba(200,168,75,0.3); color: var(--text-dim); cursor: default; }
+
+    .btn-lobby.secondary {
+      background: transparent;
+      border: 1px solid rgba(200,168,75,0.4);
+      color: var(--text-dim);
+      font-size: 0.88rem;
+    }
+    .btn-lobby.secondary:hover { border-color: var(--gold); color: var(--gold); background: transparent; }
+
+    .lobby-error {
+      color: #e74c3c;
+      font-family: 'Crimson Pro', serif;
+      font-size: 0.9rem;
+      min-height: 18px;
+      text-align: center;
+    }
+
+    .lobby-divider {
+      text-align: center;
+      color: var(--text-dim);
+      font-family: 'Crimson Pro', serif;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+      position: relative;
+    }
+    .lobby-divider::before, .lobby-divider::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 35%;
+      height: 1px;
+      background: rgba(200,168,75,0.2);
+    }
+    .lobby-divider::before { left: 0; }
+    .lobby-divider::after  { right: 0; }
+
+    /* Room code display after creating */
+    .room-code-display {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(200,168,75,0.4);
+      border-radius: 6px;
+      padding: 14px;
+      text-align: center;
+    }
+    .room-code-display .code {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      color: var(--gold);
+      letter-spacing: 6px;
+      display: block;
+      margin: 6px 0;
+    }
+    .room-code-display .hint {
+      color: var(--text-dim);
+      font-family: 'Crimson Pro', serif;
+      font-size: 0.85rem;
+    }
+
+    /* Open rooms list */
+    .open-rooms { display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; }
+    .open-room-item {
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(0,0,0,0.2); border: 1px solid rgba(200,168,75,0.15);
+      border-radius: 5px; padding: 8px 12px; cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .open-room-item:hover { border-color: rgba(200,168,75,0.5); }
+    .open-room-item .room-host { color: var(--text-light); font-size: 0.95rem; }
+    .open-room-item .room-code-sm { color: var(--text-dim); font-family: 'Playfair Display', serif; font-size: 0.8rem; letter-spacing: 2px; }
+    .no-rooms { color: var(--text-dim); font-family: 'Crimson Pro', serif; font-size: 0.9rem; text-align: center; padding: 12px 0; }
+
+    /* Waiting sub-state inside lobby */
+    .lobby-waiting {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 14px; padding: 12px 0; text-align: center;
+    }
+    .lobby-waiting p { color: var(--text-dim); font-family: 'Crimson Pro', serif; font-size: 0.95rem; }
+
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--felt-light);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Settings toggle */
+    .lobby-settings-toggle {
+      margin-top: 28px;
+      color: var(--text-dim);
+      font-family: 'Crimson Pro', serif;
+      font-size: 0.88rem;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .lobby-settings-toggle:hover { color: var(--gold); }
+
+    .lobby-settings {
+      display: none;
+      background: rgba(0,0,0,0.18);
+      border: 1px solid rgba(200,168,75,0.2);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-top: 10px;
+      width: 100%;
+      max-width: 760px;
+      gap: 12px;
+      flex-direction: column;
+    }
+    .lobby-settings.open { display: flex; }
+    .lobby-settings h3 { font-family: 'Playfair Display', serif; color: var(--gold); font-size: 0.95rem; letter-spacing: 1px; }
+    .settings-row { display: flex; align-items: center; gap: 10px; }
+    .settings-row label { color: var(--text-dim); font-family: 'Crimson Pro', serif; font-size: 0.9rem; min-width: 80px; }
+
+    /* Game screen waiting for opponent (after creating) */
     #screen-waiting {
       justify-content: center; min-height: 100vh;
       gap: 20px; text-align: center;
@@ -71,15 +285,6 @@
       letter-spacing: 2px;
     }
     #screen-waiting p { color: var(--text-dim); font-size: 1.1rem; }
-
-    .spinner {
-      width: 40px; height: 40px;
-      border: 3px solid var(--felt-light);
-      border-top-color: var(--gold);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
 
     #screen-gameover {
       justify-content: center; min-height: 100vh;
@@ -722,11 +927,77 @@
 </head>
 <body>
 
-  <!-- WAITING -->
-  <div id="screen-waiting" class="screen active">
+  <!-- LOBBY -->
+  <div id="screen-lobby" class="screen active">
+    <h1 class="lobby-title">Marieke's Gratie</h1>
+    <p class="lobby-tagline">Two players · Two decks · One table</p>
+
+    <div class="lobby-panels">
+
+      <!-- CREATE GAME panel -->
+      <div class="lobby-panel" id="panel-create">
+        <h2>♠ Create Game</h2>
+        <input class="lobby-input" id="create-name" placeholder="Your name" maxlength="20" autocomplete="off"/>
+        <div id="game-type-row" style="display:flex;flex-direction:column;gap:6px">
+          <label style="color:var(--text-dim);font-family:'Crimson Pro',serif;font-size:0.88rem">Game</label>
+          <select class="lobby-input" id="create-game-type" style="cursor:pointer">
+            <option value="marieken-gratie">Marieke's Gratie</option>
+          </select>
+        </div>
+        <button class="btn-lobby" id="btn-create" onclick="doCreateRoom()">Create Game</button>
+        <div class="lobby-error" id="create-error"></div>
+
+        <!-- Room code shown after creating -->
+        <div id="create-waiting" style="display:none">
+          <div class="room-code-display">
+            <span class="hint">Share this code with your friend</span>
+            <span class="code" id="room-code-display">——————</span>
+            <span class="hint">Waiting for them to join…</span>
+          </div>
+          <div class="lobby-waiting">
+            <div class="spinner"></div>
+            <p id="create-waiting-msg">Waiting for opponent…</p>
+          </div>
+          <button class="btn-lobby secondary" onclick="cancelRoom()" style="margin-top:8px">Cancel</button>
+        </div>
+      </div>
+
+      <!-- JOIN GAME panel -->
+      <div class="lobby-panel" id="panel-join">
+        <h2>♥ Join Game</h2>
+        <input class="lobby-input" id="join-name" placeholder="Your name" maxlength="20" autocomplete="off"/>
+        <input class="lobby-input code-input" id="join-code" placeholder="ROOM CODE" maxlength="6" autocomplete="off"
+               oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"/>
+        <button class="btn-lobby" id="btn-join" onclick="doJoinRoom()">Join Game</button>
+        <div class="lobby-error" id="join-error"></div>
+
+        <div class="lobby-divider">or join an open game</div>
+
+        <!-- Open rooms list -->
+        <div class="open-rooms" id="open-rooms-list">
+          <div class="no-rooms">Loading…</div>
+        </div>
+        <button class="btn-lobby secondary" onclick="refreshRooms()">↻ Refresh</button>
+      </div>
+
+    </div>
+
+    <!-- Settings toggle -->
+    <span class="lobby-settings-toggle" onclick="toggleLobbySettings()">⚙ Settings</span>
+    <div class="lobby-settings" id="lobby-settings">
+      <h3>Settings</h3>
+      <div class="settings-row">
+        <label>Sound</label>
+        <button class="btn-view-toggle" id="lobby-sound-btn" onclick="toggleSound()">🔊</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WAITING (after creating, before opponent joins — handled inside lobby panel above) -->
+  <div id="screen-waiting" class="screen">
     <h1>Marieke's Gratie</h1>
     <div class="spinner"></div>
-    <p id="waiting-message">Connecting...</p>
+    <p id="waiting-message">Connecting…</p>
   </div>
 
   <!-- GAME -->
@@ -749,7 +1020,7 @@
         <div>
           <div class="zone-status" id="opp-status"></div>
           <div class="hand-group" id="group-opponent">
-            <div class="hand-group-label">Opponent's Cards</div>
+            <div class="hand-group-label" id="opp-group-label">Opponent's Cards</div>
             <div class="hand-group-piles" id="opp-piles-container">
               <div class="pile-group">
                 <div class="zone-label">Hand</div>
@@ -789,7 +1060,7 @@
         <div>
           <div class="zone-status" id="my-status"></div>
           <div class="hand-group" id="group-mine">
-            <div class="hand-group-label">Your Cards</div>
+            <div class="hand-group-label" id="my-group-label">Your Cards</div>
             <div class="hand-group-piles" id="my-piles-container">
               <div class="pile-group">
                 <div class="zone-label">Hand</div>
@@ -833,9 +1104,13 @@
       line-height: 1.8;
       text-align: center;
     "></div>
-    <button class="btn-primary" onclick="requestRestart()" style="margin-top:24px">
-      Play Again
-    </button>
+    <div style="display:flex;gap:12px;margin-top:24px;flex-wrap:wrap;justify-content:center">
+      <button class="btn-primary" onclick="requestRestart()">Play Again</button>
+      <button class="btn-primary" onclick="goToLobby()"
+              style="background:transparent;border:1px solid rgba(200,168,75,0.5);color:var(--text-dim)">
+        ← Back to Lobby
+      </button>
+    </div>
   </div>
 
   <!-- MODAL -->
@@ -861,8 +1136,13 @@
   const socket = io({ transports: ['polling'] });
 
   let myPlayerNumber = null;
+  let myName         = '';
   let gameState      = null;
   let selectedCard   = null;
+
+  // Name helper — falls back gracefully if names not in state
+  function myDisplayName()  { return (gameState?.names?.[myPlayerNumber]) || myName || 'You'; }
+  function oppDisplayName() { return (gameState?.names?.[oppNum(myPlayerNumber)]) || 'Opponent'; }
 
   // ===========================================================================
   // SOUND ENGINE
@@ -964,13 +1244,92 @@
     updateSoundBtn();
   }
 
-  function updateSoundBtn() {
-    const btn = document.getElementById('btn-sound-toggle');
-    if (btn) btn.textContent = soundOn ? '🔊' : '🔇';
+  // ===========================================================================
+  // LOBBY FUNCTIONS
+  // ===========================================================================
+
+  function toggleLobbySettings() {
+    document.getElementById('lobby-settings').classList.toggle('open');
   }
 
-  // Set button icon immediately — script runs after DOM so no event needed
-  updateSoundBtn();
+  function showLobbyError(panelId, msg) {
+    const el = document.getElementById(panelId);
+    if (el) { el.textContent = msg; setTimeout(() => { if(el) el.textContent=''; }, 4000); }
+  }
+
+  function doCreateRoom() {
+    const name = document.getElementById('create-name').value.trim();
+    if (!name) { showLobbyError('create-error', 'Please enter your name.'); return; }
+    const gameType = document.getElementById('create-game-type').value;
+    myName = name;
+    document.getElementById('btn-create').disabled = true;
+    socket.emit('createRoom', { name, gameType });
+  }
+
+  function doJoinRoom() {
+    const name = document.getElementById('join-name').value.trim();
+    const code = document.getElementById('join-code').value.trim().toUpperCase();
+    if (!name) { showLobbyError('join-error', 'Please enter your name.'); return; }
+    if (code.length !== 6) { showLobbyError('join-error', 'Room code must be 6 characters.'); return; }
+    myName = name;
+    document.getElementById('btn-join').disabled = true;
+    socket.emit('joinRoom', { roomCode: code, name });
+  }
+
+  function joinFromList(code) {
+    const name = document.getElementById('join-name').value.trim();
+    if (!name) { showLobbyError('join-error', 'Enter your name first, then click a room.'); return; }
+    document.getElementById('join-code').value = code;
+    doJoinRoom();
+  }
+
+  function cancelRoom() {
+    socket.emit('returnToLobby');
+    // Reset create panel UI
+    document.getElementById('create-waiting').style.display = 'none';
+    document.getElementById('btn-create').disabled = false;
+    document.getElementById('btn-create').style.display = '';
+  }
+
+  function goToLobby() {
+    socket.emit('returnToLobby');
+  }
+
+  function refreshRooms() {
+    socket.emit('listRooms');
+  }
+
+  function renderRoomList(rooms) {
+    const el = document.getElementById('open-rooms-list');
+    if (!el) return;
+    if (!rooms.length) {
+      el.innerHTML = '<div class="no-rooms">No open games — create one!</div>';
+      return;
+    }
+    el.innerHTML = rooms.map(r => `
+      <div class="open-room-item" onclick="joinFromList('${r.code}')">
+        <span class="room-host">${escHtml(r.hostName)}</span>
+        <span class="room-code-sm">${r.code}</span>
+      </div>
+    `).join('');
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Request room list when lobby is shown
+  function onLobbyShown() {
+    socket.emit('listRooms');
+    // Reset UI state
+    document.getElementById('create-waiting').style.display = 'none';
+    document.getElementById('btn-create').disabled = false;
+    document.getElementById('btn-create').style.display = '';
+    document.getElementById('btn-join').disabled = false;
+    document.getElementById('create-error').textContent = '';
+    document.getElementById('join-error').textContent = '';
+    updateSoundBtn();
+  }
 
   // wasMine: true if the turn that just ended was mine (I sent the card)
   function playSoundForEvent(lastEvent, state, wasMine) {
@@ -1056,13 +1415,20 @@
     gameState    = state;
     selectedCard = null;
 
-    if (state.phase === 'gameOver')      { showGameOver(state); return; }
+    if (state.phase === 'gameOver') {
+      if (lastEvent === 'opponentLeft') {
+        showGameOver(state, true);
+      } else {
+        showGameOver(state, false);
+      }
+      return;
+    }
     if (state.phase === 'pendingRedeal') {
-      showPendingModal('Re-deal Request', 'Your opponent wants to re-deal. Do you agree?');
+      showPendingModal('Re-deal Request', `${oppDisplayName()} wants to re-deal. Do you agree?`);
       return;
     }
     if (state.phase === 'pendingCycle')  {
-      showPendingModal('Stock Cycle Request', 'Your opponent wants to cycle the stock piles. Do you agree?');
+      showPendingModal('Stock Cycle Request', `${oppDisplayName()} wants to cycle the stocks. Do you agree?`);
       return;
     }
     closeModal();
@@ -1204,24 +1570,38 @@
   // SOCKET EVENTS
   // ===========================================================================
 
-  socket.on('assigned', ({ playerNumber }) => {
-    myPlayerNumber = playerNumber;
-    document.getElementById('my-label').textContent =
-      `Player ${playerNumber}`;
-    document.getElementById('waiting-message').textContent =
-      `You are Player ${playerNumber}. Waiting for opponent...`;
-    // Re-render if gameState already arrived (race condition fix)
-    if (gameState && gameState.phase === 'playing') {
-      render(gameState);
-      showScreen('game');
-    }
+  // Room created — show waiting state inside the create panel
+  socket.on('roomCreated', ({ roomCode, playerNum, name }) => {
+    myPlayerNumber = playerNum;
+    myName         = name;
+    document.getElementById('room-code-display').textContent = roomCode;
+    document.getElementById('create-waiting').style.display  = 'block';
+    document.getElementById('btn-create').style.display      = 'none';
   });
 
-  socket.on('waiting',  ({ message }) =>
-    document.getElementById('waiting-message').textContent = message);
+  // Joined a room — game starts immediately via gameStateUpdate
+  socket.on('roomJoined', ({ roomCode, playerNum, name }) => {
+    myPlayerNumber = playerNum;
+    myName         = name;
+  });
 
-  socket.on('rejected', ({ reason }) =>
-    document.getElementById('waiting-message').textContent = reason);
+  // Room list for the join panel
+  socket.on('roomList', (rooms) => renderRoomList(rooms));
+
+  // Join error
+  socket.on('joinError', ({ reason }) => {
+    showLobbyError('join-error', reason);
+    document.getElementById('btn-join').disabled = false;
+  });
+
+  // Server says return to lobby (after returnToLobby event or after opponent left)
+  socket.on('lobbyReady', () => {
+    gameState      = null;
+    selectedCard   = null;
+    myPlayerNumber = null;
+    showScreen('lobby');
+    onLobbyShown();
+  });
 
   socket.on('gameStateUpdate', (state) => {
     const lastEvent = state.lastEvent || 'update';
@@ -1230,12 +1610,16 @@
       ? gameState.turn.player === myPlayerNumber
       : false;
 
-    // Don't update gameState here — the queue owns that timing
+    // If we receive a game state and aren't on the game screen yet, go there
+    if (state.phase !== 'gameOver' &&
+        !document.getElementById('screen-game').classList.contains('active')) {
+      showScreen('game');
+    }
+
     enqueueUpdate(state, lastEvent, lastMove, wasMine);
   });
 
   socket.on('moveRejected', ({ reason }) => {
-    // Keep selectedCard — player can try a different destination
     setStatus(reason, 'error');
     setTimeout(() => { if (gameState) updateStatus(gameState); }, 2200);
   });
@@ -1251,9 +1635,7 @@
     )
   );
 
-  socket.on('restarted', () => {
-    selectedCard = null;
-  });
+  socket.on('restarted', () => { selectedCard = null; });
 
   // ===========================================================================
   // ACTIONS
@@ -1265,9 +1647,7 @@
   const sendForfeit       = () => socket.emit('requestForfeit');
   const respondToRequest  = accepted => { socket.emit('respondToRequest', { accepted }); closeModal(); };
 
-  function requestRestart() {
-    socket.emit('requestRestart');
-  }
+  function requestRestart() { socket.emit('requestRestart'); }
 
   // ===========================================================================
   // WIDESCREEN TOGGLE
@@ -1352,8 +1732,17 @@
     const isMyTurnNow  = state.turn.player === me;
     const isOppTurnNow = state.turn.player === op;
 
+    // Update name labels from state
+    const myN  = state.names?.[me]  || myName || `Player ${me}`;
+    const oppN = state.names?.[op]  || `Player ${op}`;
+    const myLbl  = document.getElementById('my-label');
+    const myGrp  = document.getElementById('my-group-label');
+    const oppGrp = document.getElementById('opp-group-label');
+    if (myLbl)  myLbl.textContent  = myN;
+    if (myGrp)  myGrp.textContent  = `${myN}'s Cards`;
+    if (oppGrp) oppGrp.textContent = `${oppN}'s Cards`;
+
     // activeHandCard belongs to whoever's turn it is.
-    // Only show in "my-active" if it's actually MY turn.
     const myActiveCard  = isMyTurnNow  ? state.turn.activeHandCard : null;
     const oppActiveCard = isOppTurnNow ? state.turn.activeHandCard : null;
 
@@ -1925,6 +2314,7 @@
 
     const myTurn = state.turn.player === myPlayerNumber;
     const hasAct = state.turn.activeHandCard !== null;
+    const oppN   = oppDisplayName();
 
     myStatus.className  = 'zone-status';
     oppStatus.className = 'zone-status';
@@ -1940,18 +2330,18 @@
       } else {
         dot.classList.add('off');
         myStatus.textContent  = '';
-        oppStatus.textContent = "Opponent's turn";
+        oppStatus.textContent = `${oppN}'s turn`;
       }
     } else if (state.phase === 'pendingRedeal') {
       dot.classList.add('off');
       myStatus.textContent = state.pendingRequest.requestedBy === myPlayerNumber
         ? 'Re-deal requested — waiting for opponent...'
-        : 'Opponent requests a re-deal';
+        : `${oppN} requests a re-deal`;
     } else if (state.phase === 'pendingCycle') {
       dot.classList.add('off');
       myStatus.textContent = state.pendingRequest.requestedBy === myPlayerNumber
         ? 'Stock Cycle requested — waiting for opponent...'
-        : 'Opponent requests a Stock Cycle';
+        : `${oppN} requests a Stock Cycle`;
     }
   }
 
@@ -1997,20 +2387,7 @@
     }
   }
 
-  // ===========================================================================
-  // WIDESCREEN TOGGLE
-  // ===========================================================================
 
-  let widesreenMode = false;
-
-  function toggleView() {
-    widesreenMode = !widesreenMode;
-    document.body.classList.toggle('widescreen', widesreenMode);
-    const btn = document.getElementById('btn-view-toggle');
-    if (btn) btn.textContent = widesreenMode ? '⇔ Standard' : '⇔ Widescreen';
-    // Re-render so stock fans and tableau recompute card widths
-    if (gameState) render(gameState);
-  }
 
   // ===========================================================================
   // SCREENS
@@ -2021,58 +2398,57 @@
       .forEach(s => s.classList.remove('active'));
     document.getElementById(`screen-${name}`).classList.add('active');
     // In widescreen mode body.widescreen forces #screen-game to display:grid
-    // regardless of the active class. Remove it when leaving the game screen
-    // so game-over / waiting screens aren't obscured.
+    // regardless of active class — remove when leaving game screen.
     if (name !== 'game') {
       document.body.classList.remove('widescreen');
-    } else if (widesreenMode) {
+    } else if (widescreenMode) {
       document.body.classList.add('widescreen');
     }
+    if (name === 'lobby') onLobbyShown();
   }
 
-  function showGameOver(state) {
-    const won = state.winner === myPlayerNumber;
+  function showGameOver(state, opponentLeft = false) {
+    const won    = state.winner === myPlayerNumber;
+    const myN    = state.names?.[myPlayerNumber] || myName || 'You';
+    const oppN   = state.names?.[oppNum(myPlayerNumber)] || 'Opponent';
+    const winner = state.winner === myPlayerNumber ? myN : oppN;
+
     document.getElementById('gameover-title').textContent =
       won ? '🏆 Victory!' : 'Defeat';
-    document.getElementById('gameover-message').textContent = won
-      ? 'Congratulations — you emptied your piles first!'
-      : `Player ${state.winner} wins. Better luck next time!`;
 
-    // Show timing stats if available
+    if (opponentLeft) {
+      document.getElementById('gameover-message').textContent =
+        `${oppN} disconnected. You win by default!`;
+    } else {
+      document.getElementById('gameover-message').textContent = won
+        ? `Congratulations ${myN} — you emptied your piles first!`
+        : `${winner} wins. Better luck next time!`;
+    }
+
     const statsEl = document.getElementById('gameover-stats');
-    if (statsEl && state.timing) {
+    if (statsEl && state.timing && !opponentLeft) {
       const t  = state.timing;
       const me = myPlayerNumber;
-      const op = me === 1 ? 2 : 1;
-
-      const fmt = ms => {
-        const s = Math.round(ms / 1000);
-        if (s < 60) return `${s}s`;
-        return `${Math.floor(s/60)}m ${s%60}s`;
-      };
-
-      const myAvg  = t.turns[me] > 0 ? Math.round(t[me] / t.turns[me] / 1000) : 0;
-      const oppAvg = t.turns[op] > 0 ? Math.round(t[op] / t.turns[op] / 1000) : 0;
-
-      const thinker  = t[me] > t[op] ? 'You' : 'Opponent';
-      const speedster = t[me] < t[op] ? 'You' : 'Opponent';
-
+      const op = oppNum(me);
+      const fmt = ms => { const s=Math.round(ms/1000); return s<60?`${s}s`:`${Math.floor(s/60)}m ${s%60}s`; };
+      const myAvg  = t.turns[me] > 0 ? Math.round(t[me]/t.turns[me]/1000) : 0;
+      const oppAvg = t.turns[op] > 0 ? Math.round(t[op]/t.turns[op]/1000) : 0;
+      const thinker   = t[me] > t[op] ? myN : oppN;
+      const speedster = t[me] < t[op] ? myN : oppN;
       statsEl.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;max-width:320px;margin:0 auto">
-          <div style="color:var(--gold);text-align:right">Your think time</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;max-width:340px;margin:0 auto">
+          <div style="color:var(--gold);text-align:right">${myN}</div>
           <div>${fmt(t[me])} · ${t.turns[me]} turns · avg ${myAvg}s</div>
-          <div style="color:var(--gold);text-align:right">Opponent think time</div>
+          <div style="color:var(--gold);text-align:right">${oppN}</div>
           <div>${fmt(t[op])} · ${t.turns[op]} turns · avg ${oppAvg}s</div>
           <div style="color:var(--gold);text-align:right">Deep thinker</div>
           <div>${thinker}</div>
           <div style="color:var(--gold);text-align:right">Speed demon</div>
           <div>${speedster}</div>
-        </div>
-      `;
+        </div>`;
     } else if (statsEl) {
       statsEl.innerHTML = '';
     }
-
     showScreen('gameover');
   }
 
