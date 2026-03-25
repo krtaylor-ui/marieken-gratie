@@ -49,8 +49,14 @@ function sanitiseName(raw)           { return (typeof raw==='string' ? raw.trim(
 
 function statePayload(room, lastEvent='update', lastMove=null) {
   const names = { 1: room.players[1]?.name||'Player 1', 2: room.players[2]?.name||'Player 2' };
+  // tableTheme: non-first-player's theme sets the table felt/watermark
   const tableTheme = room.players[2]?.theme || room.players[1]?.theme || 'classic';
-  return { ...room.gameState, names, tableTheme, lastEvent, lastMove };
+  // playerThemes: each player's own theme for their card backs
+  const playerThemes = {
+    1: room.players[1]?.theme || 'classic',
+    2: room.players[2]?.theme || 'classic',
+  };
+  return { ...room.gameState, names, tableTheme, playerThemes, lastEvent, lastMove };
 }
 function broadcastState(room, lastEvent='update', lastMove=null) {
   broadcastRoom(room, 'gameStateUpdate', statePayload(room, lastEvent, lastMove));
