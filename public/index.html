@@ -1315,85 +1315,196 @@
     minecraft: {
       name: 'Minecraft',
       felt: { bg:'#2d4a1e', light:'#3a5c26', shadow:'#1a2e10' },
-      back1: { bg:'#1a3a0a', grad:'#2d5c12 0%, #0f2206 100%' },  // Creeper green
-      back2: { bg:'#1a0a3a', grad:'#2d1260 0%, #0a0620 100%' },  // Diamond purple
-      logoSVG: (d) => d === 1
-        // Creeper face
-        ? `<g opacity="0.5">
-            <rect x="22" y="24" width="26" height="28" fill="#5a7a2a" rx="1"/>
-            <rect x="26" y="30" width="6" height="6" fill="#1a2e0a"/>
-            <rect x="38" y="30" width="6" height="6" fill="#1a2e0a"/>
-            <rect x="30" y="38" width="10" height="4" fill="#1a2e0a"/>
-            <rect x="26" y="42" width="6" height="6" fill="#1a2e0a"/>
-            <rect x="38" y="42" width="6" height="6" fill="#1a2e0a"/>
-          </g>`
-        // Diamond
-        : `<g opacity="0.45">
-            <polygon points="35,22 48,35 35,52 22,35" fill="#4ac0d4"/>
-            <polygon points="35,22 48,35 35,38" fill="#2a8a9a"/>
-            <polygon points="35,22 22,35 35,38" fill="#5ad0e4"/>
-          </g>`,
-      tableWatermark: `<g opacity="0.06">
-        <!-- Grass block pixel art -->
-        <rect x="50" y="50" width="100" height="30" fill="#5a8a2a"/>
-        <rect x="50" y="80" width="100" height="70" fill="#8B5E3C"/>
-        <!-- Pixel grid overlay -->
-        ${Array.from({length:5}, (_,i) =>
-          `<line x1="${50+i*25}" y1="50" x2="${50+i*25}" y2="150" stroke="#ffffff" stroke-width="0.5"/>`
-        ).join('')}
-        ${Array.from({length:5}, (_,i) =>
-          `<line x1="50" y1="${50+i*25}" x2="150" y2="${50+i*25}" stroke="#ffffff" stroke-width="0.5"/>`
-        ).join('')}
-      </g>`,
+      back1: { bg:'#1a3a0a', grad:'#2d5c12 0%, #0f2206 100%' },
+      back2: { bg:'#1a0a3a', grad:'#2d1260 0%, #0a0620 100%' },
+
+      // Card back logo — Minecraft wordmark in blocky pixel style
+      // d=1 green back, d=2 purple back
+      logoSVG: (d) => {
+        const col = d === 1 ? 'rgba(120,200,60,0.55)' : 'rgba(160,100,255,0.55)';
+        // Each letter drawn as filled rectangles forming pixel font shapes
+        // All letters fit in a 60×14 area centred at (35,50)
+        // Scale: each pixel unit = 1.5px, letters are ~5px wide with 1px gap
+        return `<g transform="translate(5,43)" opacity="1">
+          <!-- M -->
+          <rect x="0"  y="0" width="2" height="10" fill="${col}"/>
+          <rect x="2"  y="0" width="2" height="4"  fill="${col}"/>
+          <rect x="4"  y="0" width="2" height="10" fill="${col}"/>
+          <rect x="6"  y="0" width="2" height="4"  fill="${col}"/>
+          <rect x="8"  y="0" width="2" height="10" fill="${col}"/>
+          <!-- I -->
+          <rect x="11" y="0" width="5" height="2"  fill="${col}"/>
+          <rect x="13" y="2" width="2" height="6"  fill="${col}"/>
+          <rect x="11" y="8" width="5" height="2"  fill="${col}"/>
+          <!-- N -->
+          <rect x="18" y="0" width="2" height="10" fill="${col}"/>
+          <rect x="20" y="2" width="2" height="3"  fill="${col}"/>
+          <rect x="22" y="4" width="2" height="3"  fill="${col}"/>
+          <rect x="24" y="0" width="2" height="10" fill="${col}"/>
+          <!-- E -->
+          <rect x="28" y="0" width="2" height="10" fill="${col}"/>
+          <rect x="30" y="0" width="5" height="2"  fill="${col}"/>
+          <rect x="30" y="4" width="4" height="2"  fill="${col}"/>
+          <rect x="30" y="8" width="5" height="2"  fill="${col}"/>
+          <!-- C -->
+          <rect x="37" y="0" width="5" height="2"  fill="${col}"/>
+          <rect x="37" y="2" width="2" height="6"  fill="${col}"/>
+          <rect x="37" y="8" width="5" height="2"  fill="${col}"/>
+          <!-- R -->
+          <rect x="44" y="0" width="2" height="10" fill="${col}"/>
+          <rect x="46" y="0" width="3" height="2"  fill="${col}"/>
+          <rect x="49" y="2" width="2" height="2"  fill="${col}"/>
+          <rect x="46" y="4" width="3" height="2"  fill="${col}"/>
+          <rect x="48" y="6" width="2" height="2"  fill="${col}"/>
+          <rect x="50" y="8" width="2" height="2"  fill="${col}"/>
+          <!-- A -->
+          <rect x="54" y="2" width="4" height="2"  fill="${col}"/>
+          <rect x="53" y="4" width="2" height="6"  fill="${col}"/>
+          <rect x="57" y="4" width="2" height="6"  fill="${col}"/>
+          <rect x="55" y="6" width="2" height="2"  fill="${col}"/>
+          <!-- F -->
+          <rect x="61" y="0" width="2" height="10" fill="${col}"/>
+          <rect x="63" y="0" width="4" height="2"  fill="${col}"/>
+          <rect x="63" y="4" width="3" height="2"  fill="${col}"/>
+          <!-- T -->
+          <rect x="68" y="0" width="7" height="2"  fill="${col}"/>
+          <rect x="71" y="2" width="2" height="8"  fill="${col}"/>
+        </g>`;
+      },
+
+      // Creeper face watermark — pixel grid silhouette
+      // Green squares = face shape, felt-colour squares = "black" cutouts
+      // The felt colour is injected at render time via a CSS trick —
+      // we use the same green as the face but make the "holes" slightly
+      // darker so they read as the iconic creeper pattern
+      tableWatermark: (() => {
+        // Creeper face on a 8×8 pixel grid, scaled to ~120px
+        // 1 = green face, 0 = transparent (shows felt), 2 = dark (eyes/mouth)
+        const px = 14; // pixel size
+        const ox = 40, oy = 28; // offset to centre in 200×200 viewBox
+        // 8-wide × 10-tall face grid (simplified from reference)
+        const face = [
+          [0,1,1,1,1,1,1,0],
+          [1,1,1,1,1,1,1,1],
+          [1,1,2,2,1,2,2,1],  // eyes row 1
+          [1,1,2,2,1,2,2,1],  // eyes row 2
+          [1,1,1,1,1,1,1,1],
+          [1,1,1,2,2,1,1,1],  // mouth top
+          [1,1,2,2,2,2,1,1],  // mouth mid
+          [1,1,2,2,2,2,1,1],  // mouth mid
+          [1,1,1,2,2,1,1,1],  // mouth bot
+          [0,1,1,1,1,1,1,0],
+        ];
+        let svg = `<g opacity="0.12">`;
+        face.forEach((row, r) => {
+          row.forEach((v, c) => {
+            if (v === 1) svg += `<rect x="${ox+c*px}" y="${oy+r*px}" width="${px}" height="${px}" fill="#5a8a2a"/>`;
+            if (v === 2) svg += `<rect x="${ox+c*px}" y="${oy+r*px}" width="${px}" height="${px}" fill="#1a2e10"/>`;
+          });
+        });
+        svg += `</g>`;
+        return svg;
+      })(),
+
       portraits: {
-        // Jack = Creeper
-        11: (a, l) => `
-          <!-- Creeper body -->
-          <rect x="26" y="26" width="18" height="22" fill="${l}" rx="1"/>
-          <!-- Creeper face pixels -->
-          <rect x="28" y="29" width="5" height="5" fill="${a}"/>
-          <rect x="36" y="29" width="5" height="5" fill="${a}"/>
-          <rect x="31" y="36" width="7" height="3" fill="${a}"/>
-          <rect x="28" y="39" width="5" height="5" fill="${a}"/>
-          <rect x="36" y="39" width="5" height="5" fill="${a}"/>
-          <!-- Legs -->
-          <rect x="27" y="48" width="6" height="6" fill="${l}" rx="1"/>
-          <rect x="36" y="48" width="6" height="6" fill="${l}" rx="1"/>`,
-        // Queen = Steve
-        12: (a, l) => `
-          <!-- Head -->
-          <rect x="26" y="20" width="18" height="18" fill="${l}" rx="1"/>
-          <!-- Hair -->
-          <rect x="26" y="20" width="18" height="6" fill="${a}" rx="1"/>
-          <rect x="26" y="20" width="4" height="14" fill="${a}"/>
-          <!-- Eyes -->
-          <rect x="30" y="27" width="4" height="4" fill="#4a3020"/>
-          <rect x="36" y="27" width="4" height="4" fill="#4a3020"/>
-          <!-- Body/shirt -->
-          <rect x="24" y="38" width="22" height="14" fill="#3a6aaa" rx="1"/>
-          <!-- Arms -->
-          <rect x="17" y="38" width="6" height="12" fill="${l}" rx="1"/>
-          <rect x="47" y="38" width="6" height="12" fill="${l}" rx="1"/>
-          <!-- Legs -->
-          <rect x="25" y="52" width="8" height="2" fill="#2a4a8a"/>
-          <rect x="37" y="52" width="8" height="2" fill="#2a4a8a"/>`,
-        // King = Enderman
-        13: (a, l) => `
-          <!-- Tall thin body -->
-          <rect x="30" y="22" width="10" height="12" fill="${a}" rx="1"/>
-          <!-- Eyes — purple glow -->
-          <rect x="32" y="25" width="3" height="3" fill="#cc44ff"/>
-          <rect x="35" y="25" width="3" height="3" fill="#cc44ff"/>
-          <!-- Long thin arms -->
-          <rect x="20" y="34" width="4" height="16" fill="${a}" rx="1"/>
-          <rect x="46" y="34" width="4" height="16" fill="${a}" rx="1"/>
-          <!-- Body -->
-          <rect x="28" y="34" width="14" height="14" fill="${a}" rx="1"/>
-          <!-- Holding block -->
-          <rect x="48" y="30" width="8" height="8" fill="#5a7a2a" rx="1"/>
-          <!-- Legs -->
-          <rect x="28" y="48" width="5" height="6" fill="${a}" rx="1"/>
-          <rect x="37" y="48" width="5" height="6" fill="${a}" rx="1"/>`,
+        // Jack = Creeper — green body, iconic pixel face, no arms
+        11: () => {
+          const G  = '#4a7a28'; // main green
+          const GL = '#6aaa3a'; // lighter green highlight
+          const DK = '#1a1a1a'; // dark — eyes and mouth pixels
+          // Face pixel pattern: 8×8 grid, pixel=3px, centred on card
+          // Head centred at x=19..46 (28px wide), y=18..46 (28px tall)
+          const P  = 3.5; // pixel size
+          const hx = 18, hy = 16; // head top-left
+          // Head base
+          let portrait = `<rect x="${hx}" y="${hy}" width="${P*8}" height="${P*8}" fill="${G}"/>`;
+          // Face pixel highlights (lighter patches like the reference)
+          [[1,1],[5,1],[2,3],[4,3],[1,5],[6,5],[3,6],[2,2],[5,2]].forEach(([c,r]) => {
+            portrait += `<rect x="${hx+c*P}" y="${hy+r*P}" width="${P}" height="${P}" fill="${GL}" opacity="0.5"/>`;
+          });
+          // Eyes: two 2×2 blocks
+          portrait += `<rect x="${hx+2*P}" y="${hy+3*P}" width="${P*2}" height="${P*2}" fill="${DK}"/>`;
+          portrait += `<rect x="${hx+5*P}" y="${hy+3*P}" width="${P*2}" height="${P*2}" fill="${DK}"/>`;
+          // Mouth: upside-down T — centre column + two flanking bottom
+          portrait += `<rect x="${hx+3*P}" y="${hy+5*P}" width="${P*2}" height="${P}"   fill="${DK}"/>`;
+          portrait += `<rect x="${hx+2*P}" y="${hy+6*P}" width="${P*4}" height="${P}"   fill="${DK}"/>`;
+          portrait += `<rect x="${hx+2*P}" y="${hy+7*P}" width="${P*4}" height="${P}"   fill="${DK}"/>`;
+          // Body — narrow, taller
+          const bx = hx+P, by = hy+P*8;
+          portrait += `<rect x="${bx}" y="${by}" width="${P*6}" height="${P*7}" fill="${G}"/>`;
+          // Feet — two blocks
+          portrait += `<rect x="${bx}"       y="${by+P*7}" width="${P*2.5}" height="${P*3}" fill="${G}"/>`;
+          portrait += `<rect x="${bx+P*3.5}" y="${by+P*7}" width="${P*2.5}" height="${P*3}" fill="${G}"/>`;
+          return portrait;
+        },
+
+        // Queen = Steve — skin, teal shirt, blue jeans, brown hair
+        12: () => {
+          const SKIN = '#c8936a';
+          const HAIR = '#7a4a1a';
+          const SHIRT= '#2abaaa'; // teal
+          const JEAN = '#2a4aaa'; // blue jeans
+          const EYE  = '#6a5acd'; // purple eyes
+          const DK   = '#1a1a1a';
+          const P    = 3.5;
+          const hx = 19, hy = 12;
+          let p = '';
+          // Head
+          p += `<rect x="${hx}" y="${hy}" width="${P*8}" height="${P*8}" fill="${SKIN}"/>`;
+          // Hair — top and sides
+          p += `<rect x="${hx}"       y="${hy}"       width="${P*8}" height="${P*2}" fill="${HAIR}"/>`;
+          p += `<rect x="${hx}"       y="${hy+P*2}"   width="${P*2}" height="${P*4}" fill="${HAIR}"/>`;
+          p += `<rect x="${hx+P*6}"   y="${hy+P*2}"   width="${P*2}" height="${P*4}" fill="${HAIR}"/>`;
+          // Eyes (purple like reference)
+          p += `<rect x="${hx+P*2}"   y="${hy+P*3}"   width="${P*2}" height="${P*2}" fill="${EYE}"/>`;
+          p += `<rect x="${hx+P*5}"   y="${hy+P*3}"   width="${P*2}" height="${P*2}" fill="${EYE}"/>`;
+          // Nose hint
+          p += `<rect x="${hx+P*3.5}" y="${hy+P*5}"   width="${P}"   height="${P}"   fill="#a06040"/>`;
+          // Mouth / stubble
+          p += `<rect x="${hx+P*2}"   y="${hy+P*6.5}" width="${P*4}" height="${P}"   fill="${HAIR}" opacity="0.6"/>`;
+          // Body — teal shirt
+          const by = hy + P*8;
+          p += `<rect x="${hx-P}"     y="${by}"        width="${P*10}" height="${P*6}" fill="${SHIRT}"/>`;
+          // Arms (skin coloured, blocky)
+          p += `<rect x="${hx-P*3.5}" y="${by}"        width="${P*2.5}" height="${P*5}" fill="${SKIN}"/>`;
+          p += `<rect x="${hx+P*9}"   y="${by}"        width="${P*2.5}" height="${P*5}" fill="${SKIN}"/>`;
+          // Jeans
+          p += `<rect x="${hx}"       y="${by+P*6}"    width="${P*3.5}" height="${P*4}" fill="${JEAN}"/>`;
+          p += `<rect x="${hx+P*4.5}" y="${by+P*6}"    width="${P*3.5}" height="${P*4}" fill="${JEAN}"/>`;
+          // Pickaxe (right side, simplified)
+          p += `<line x1="${hx+P*11.5}" y1="${by-P*4}" x2="${hx+P*14}" y2="${by-P}" stroke="#888" stroke-width="2.5" stroke-linecap="round"/>`;
+          p += `<rect x="${hx+P*11}"   y="${by-P*5.5}" width="${P*3}"  height="${P*2}" fill="#aaaaaa"/>`;
+          p += `<rect x="${hx+P*12}"   y="${by-P*5.5}" width="${P}"    height="${P*2}" fill="#c8a020"/>`;
+          return p;
+        },
+
+        // King = Enderman — very tall, very thin, near-black, purple eyes
+        13: () => {
+          const BDY = '#1a1a2a'; // near-black body
+          const EYE = '#dd55ff'; // pink-purple eyes
+          const P   = 3;
+          // Head — small square, sits high
+          const hx = 26, hy = 14;
+          let p = '';
+          p += `<rect x="${hx}" y="${hy}" width="${P*6}" height="${P*6}" fill="${BDY}"/>`;
+          // Eyes — rectangular, glowing pink
+          p += `<rect x="${hx+P}"     y="${hy+P*2}" width="${P*1.5}" height="${P}" fill="${EYE}"/>`;
+          p += `<rect x="${hx+P*3.5}" y="${hy+P*2}" width="${P*1.5}" height="${P}" fill="${EYE}"/>`;
+          // Eye glow
+          p += `<rect x="${hx+P}"     y="${hy+P*2}" width="${P*1.5}" height="${P}" fill="${EYE}" opacity="0.4" transform="scale(1.4) translate(-4,-1)"/>`;
+          // Neck
+          p += `<rect x="${hx+P*2}" y="${hy+P*6}" width="${P*2}" height="${P*2}" fill="${BDY}"/>`;
+          // Body — very narrow
+          const bx = hx+P, by = hy+P*8;
+          p += `<rect x="${bx}" y="${by}" width="${P*4}" height="${P*6}" fill="${BDY}"/>`;
+          // Arms — very long and thin
+          p += `<rect x="${bx-P*3}" y="${by}"       width="${P*1.5}" height="${P*10}" fill="${BDY}"/>`;
+          p += `<rect x="${bx+P*5}" y="${by}"        width="${P*1.5}" height="${P*10}" fill="${BDY}"/>`;
+          // Legs — extremely long and thin
+          p += `<rect x="${bx+P*0.5}" y="${by+P*6}" width="${P*1.2}" height="${P*10}" fill="${BDY}"/>`;
+          p += `<rect x="${bx+P*2.3}" y="${by+P*6}" width="${P*1.2}" height="${P*10}" fill="${BDY}"/>`;
+          return p;
+        },
       },
     },
 
@@ -1608,7 +1719,7 @@
     if (prev) {
       const descriptions = {
         classic:   'Classic green felt · Diamond ornament backs',
-        minecraft: 'Grass block table · Creeper, Steve & Enderman face cards',
+        minecraft: 'Creeper face table · Creeper (J), Steve (Q) & Enderman (K) face cards',
         starwars:  'Death Star table · Yoda, Leia & Vader face cards',
         wicked:    'Emerald City table · Wizard, Glinda & Elphaba face cards',
       };
