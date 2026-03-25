@@ -927,6 +927,22 @@
 </head>
 <body>
 
+  <!-- JOIN VIA LINK overlay — shown when ?room=CODE is in the URL -->
+  <div id="screen-join-link" class="screen" style="justify-content:center;min-height:100vh;gap:20px">
+    <h1 style="font-family:'Playfair Display',serif;font-size:clamp(2rem,5vw,3rem);color:var(--gold);letter-spacing:2px;text-shadow:0 2px 12px rgba(200,168,75,0.4)">Marieke's Gratie</h1>
+    <div class="lobby-panel" style="max-width:340px;width:100%">
+      <h2>♥ You've been invited!</h2>
+      <p style="color:var(--text-dim);font-family:'Crimson Pro',serif;font-size:0.95rem">
+        Enter your name to join room <strong id="link-room-code" style="color:var(--gold);letter-spacing:2px"></strong>
+      </p>
+      <input class="lobby-input" id="link-name" placeholder="Your name" maxlength="20" autocomplete="off"
+             onkeydown="if(event.key==='Enter') joinViaLink()"/>
+      <button class="btn-lobby" onclick="joinViaLink()">Join Game</button>
+      <div class="lobby-error" id="link-error"></div>
+      <button class="btn-lobby secondary" onclick="showScreen('lobby')" style="margin-top:4px">← Back to Lobby</button>
+    </div>
+  </div>
+
   <!-- LOBBY -->
   <div id="screen-lobby" class="screen active">
     <h1 class="lobby-title">Marieke's Gratie</h1>
@@ -952,7 +968,11 @@
           <div class="room-code-display">
             <span class="hint">Share this code with your friend</span>
             <span class="code" id="room-code-display">——————</span>
-            <span class="hint">Waiting for them to join…</span>
+            <div style="display:flex;gap:8px;margin-top:8px;justify-content:center;flex-wrap:wrap">
+              <button class="btn-lobby secondary" style="flex:1;min-width:100px" onclick="copyRoomCode()">📋 Copy Code</button>
+              <button class="btn-lobby secondary" style="flex:1;min-width:100px" onclick="copyRoomLink()">🔗 Copy Link</button>
+            </div>
+            <span class="hint" id="copy-confirm" style="color:var(--gold);min-height:16px;display:block;margin-top:4px"></span>
           </div>
           <div class="lobby-waiting">
             <div class="spinner"></div>
@@ -1244,6 +1264,17 @@
     updateSoundBtn();
   }
 
+  function updateSoundBtn() {
+    const inGame = document.getElementById('btn-sound-toggle');
+    const inLobby = document.getElementById('lobby-sound-btn');
+    const icon = soundOn ? '🔊' : '🔇';
+    if (inGame)  inGame.textContent  = icon;
+    if (inLobby) inLobby.textContent = icon;
+  }
+
+  // Call immediately so button shows correct state on load
+  updateSoundBtn();
+
   // ===========================================================================
   // LOBBY FUNCTIONS
   // ===========================================================================
@@ -1298,6 +1329,48 @@
   function refreshRooms() {
     socket.emit('listRooms');
   }
+
+  // Copy the 6-char room code to clipboard
+  function copyRoomCode() {
+    const code = document.getElementById('room-code-display').textContent;
+    navigator.clipboard.writeText(code).then(() => showCopyConfirm('Code copied!'));
+  }
+
+  // Copy a direct join link to clipboard
+  function copyRoomLink() {
+    const code = document.getElementById('room-code-display').textContent;
+    const url  = `${location.origin}${location.pathname}?room=${code}`;
+    navigator.clipboard.writeText(url).then(() => showCopyConfirm('Link copied!'));
+  }
+
+  function showCopyConfirm(msg) {
+    const el = document.getElementById('copy-confirm');
+    if (!el) return;
+    el.textContent = msg;
+    setTimeout(() => { el.textContent = ''; }, 2500);
+  }
+
+  // Join via direct link — called from the join-link overlay
+  function joinViaLink() {
+    const name = document.getElementById('link-name').value.trim();
+    const code = document.getElementById('link-room-code').textContent.trim();
+    if (!name) { showLobbyError('link-error', 'Please enter your name.'); return; }
+    myName = name;
+    document.querySelector('#screen-join-link .btn-lobby').disabled = true;
+    socket.emit('joinRoom', { roomCode: code, name });
+  }
+
+  // Check URL for ?room=CODE on page load — show join-link screen if present
+  (function checkUrlRoomParam() {
+    const params = new URLSearchParams(location.search);
+    const code   = (params.get('room') || '').toUpperCase();
+    if (code.length === 6) {
+      document.getElementById('link-room-code').textContent = code;
+      // Switch to join-link screen (it's not 'active' yet)
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('screen-join-link').classList.add('active');
+    }
+  })();
 
   function renderRoomList(rooms) {
     const el = document.getElementById('open-rooms-list');
@@ -1590,8 +1663,15 @@
 
   // Join error
   socket.on('joinError', ({ reason }) => {
-    showLobbyError('join-error', reason);
-    document.getElementById('btn-join').disabled = false;
+    // Show error on whichever join panel is currently visible
+    if (document.getElementById('screen-join-link').classList.contains('active')) {
+      showLobbyError('link-error', reason);
+      const btn = document.querySelector('#screen-join-link .btn-lobby');
+      if (btn) btn.disabled = false;
+    } else {
+      showLobbyError('join-error', reason);
+      document.getElementById('btn-join').disabled = false;
+    }
   });
 
   // Server says return to lobby (after returnToLobby event or after opponent left)
@@ -1599,6 +1679,8 @@
     gameState      = null;
     selectedCard   = null;
     myPlayerNumber = null;
+    // Clear ?room= param so refreshing doesn't re-trigger join-link screen
+    if (location.search) history.replaceState({}, '', location.pathname);
     showScreen('lobby');
     onLobbyShown();
   });
