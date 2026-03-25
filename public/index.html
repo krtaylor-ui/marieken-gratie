@@ -1010,6 +1010,16 @@
         <label>Sound</label>
         <button class="btn-view-toggle" id="lobby-sound-btn" onclick="toggleSound()">🔊</button>
       </div>
+      <div class="settings-row">
+        <label>Deck Theme</label>
+        <select class="lobby-input" id="deck-theme-select" onchange="onThemeChange(this.value)" style="flex:1;cursor:pointer">
+          <option value="classic">🃏 Classic</option>
+          <option value="minecraft">⛏ Minecraft</option>
+          <option value="starwars">⚔ Star Wars</option>
+          <option value="wicked">🎭 Wicked</option>
+        </select>
+      </div>
+      <div id="theme-preview" style="margin-top:8px;text-align:center;color:var(--text-dim);font-family:'Crimson Pro',serif;font-size:0.85rem"></div>
     </div>
   </div>
 
@@ -1276,8 +1286,426 @@
   updateSoundBtn();
 
   // ===========================================================================
-  // LOBBY FUNCTIONS
+  // THEME SYSTEM
+  // Three themed decks + classic. Each theme defines:
+  //   felt        — table background colours
+  //   back1       — deck 1 card back gradient (blue-family)
+  //   back2       — deck 2 card back gradient (red-family)
+  //   logoSVG(d)  — inline SVG logo for card back (d=1 or 2)
+  //   portraits   — J/Q/K SVG portrait functions
+  //   tableWatermark — large faint SVG centred on table
   // ===========================================================================
+
+  const THEMES = {
+
+    // ── CLASSIC ──────────────────────────────────────────────────────────────
+    classic: {
+      name: 'Classic',
+      felt: { bg:'#1a472a', light:'#1f5233', shadow:'#122e1c' },
+      back1: { bg:'#0f2452', grad:'#1e4a8a 0%, #0a1a3a 100%' },
+      back2: { bg:'#520f0f', grad:'#8a1e1e 0%, #3a0a0a 100%' },
+      logoSVG: (d) => `<text x="35" y="50" font-size="22" text-anchor="middle"
+        dominant-baseline="middle" fill="rgba(200,168,75,0.45)"
+        font-family="Georgia,serif">◆</text>`,
+      tableWatermark: null,
+      portraits: null, // uses default buildPortraitSVG
+    },
+
+    // ── MINECRAFT ────────────────────────────────────────────────────────────
+    minecraft: {
+      name: 'Minecraft',
+      felt: { bg:'#2d4a1e', light:'#3a5c26', shadow:'#1a2e10' },
+      back1: { bg:'#1a3a0a', grad:'#2d5c12 0%, #0f2206 100%' },  // Creeper green
+      back2: { bg:'#1a0a3a', grad:'#2d1260 0%, #0a0620 100%' },  // Diamond purple
+      logoSVG: (d) => d === 1
+        // Creeper face
+        ? `<g opacity="0.5">
+            <rect x="22" y="24" width="26" height="28" fill="#5a7a2a" rx="1"/>
+            <rect x="26" y="30" width="6" height="6" fill="#1a2e0a"/>
+            <rect x="38" y="30" width="6" height="6" fill="#1a2e0a"/>
+            <rect x="30" y="38" width="10" height="4" fill="#1a2e0a"/>
+            <rect x="26" y="42" width="6" height="6" fill="#1a2e0a"/>
+            <rect x="38" y="42" width="6" height="6" fill="#1a2e0a"/>
+          </g>`
+        // Diamond
+        : `<g opacity="0.45">
+            <polygon points="35,22 48,35 35,52 22,35" fill="#4ac0d4"/>
+            <polygon points="35,22 48,35 35,38" fill="#2a8a9a"/>
+            <polygon points="35,22 22,35 35,38" fill="#5ad0e4"/>
+          </g>`,
+      tableWatermark: `<g opacity="0.06">
+        <!-- Grass block pixel art -->
+        <rect x="50" y="50" width="100" height="30" fill="#5a8a2a"/>
+        <rect x="50" y="80" width="100" height="70" fill="#8B5E3C"/>
+        <!-- Pixel grid overlay -->
+        ${Array.from({length:5}, (_,i) =>
+          `<line x1="${50+i*25}" y1="50" x2="${50+i*25}" y2="150" stroke="#ffffff" stroke-width="0.5"/>`
+        ).join('')}
+        ${Array.from({length:5}, (_,i) =>
+          `<line x1="50" y1="${50+i*25}" x2="150" y2="${50+i*25}" stroke="#ffffff" stroke-width="0.5"/>`
+        ).join('')}
+      </g>`,
+      portraits: {
+        // Jack = Creeper
+        11: (a, l) => `
+          <!-- Creeper body -->
+          <rect x="26" y="26" width="18" height="22" fill="${l}" rx="1"/>
+          <!-- Creeper face pixels -->
+          <rect x="28" y="29" width="5" height="5" fill="${a}"/>
+          <rect x="36" y="29" width="5" height="5" fill="${a}"/>
+          <rect x="31" y="36" width="7" height="3" fill="${a}"/>
+          <rect x="28" y="39" width="5" height="5" fill="${a}"/>
+          <rect x="36" y="39" width="5" height="5" fill="${a}"/>
+          <!-- Legs -->
+          <rect x="27" y="48" width="6" height="6" fill="${l}" rx="1"/>
+          <rect x="36" y="48" width="6" height="6" fill="${l}" rx="1"/>`,
+        // Queen = Steve
+        12: (a, l) => `
+          <!-- Head -->
+          <rect x="26" y="20" width="18" height="18" fill="${l}" rx="1"/>
+          <!-- Hair -->
+          <rect x="26" y="20" width="18" height="6" fill="${a}" rx="1"/>
+          <rect x="26" y="20" width="4" height="14" fill="${a}"/>
+          <!-- Eyes -->
+          <rect x="30" y="27" width="4" height="4" fill="#4a3020"/>
+          <rect x="36" y="27" width="4" height="4" fill="#4a3020"/>
+          <!-- Body/shirt -->
+          <rect x="24" y="38" width="22" height="14" fill="#3a6aaa" rx="1"/>
+          <!-- Arms -->
+          <rect x="17" y="38" width="6" height="12" fill="${l}" rx="1"/>
+          <rect x="47" y="38" width="6" height="12" fill="${l}" rx="1"/>
+          <!-- Legs -->
+          <rect x="25" y="52" width="8" height="2" fill="#2a4a8a"/>
+          <rect x="37" y="52" width="8" height="2" fill="#2a4a8a"/>`,
+        // King = Enderman
+        13: (a, l) => `
+          <!-- Tall thin body -->
+          <rect x="30" y="22" width="10" height="12" fill="${a}" rx="1"/>
+          <!-- Eyes — purple glow -->
+          <rect x="32" y="25" width="3" height="3" fill="#cc44ff"/>
+          <rect x="35" y="25" width="3" height="3" fill="#cc44ff"/>
+          <!-- Long thin arms -->
+          <rect x="20" y="34" width="4" height="16" fill="${a}" rx="1"/>
+          <rect x="46" y="34" width="4" height="16" fill="${a}" rx="1"/>
+          <!-- Body -->
+          <rect x="28" y="34" width="14" height="14" fill="${a}" rx="1"/>
+          <!-- Holding block -->
+          <rect x="48" y="30" width="8" height="8" fill="#5a7a2a" rx="1"/>
+          <!-- Legs -->
+          <rect x="28" y="48" width="5" height="6" fill="${a}" rx="1"/>
+          <rect x="37" y="48" width="5" height="6" fill="${a}" rx="1"/>`,
+      },
+    },
+
+    // ── STAR WARS ────────────────────────────────────────────────────────────
+    starwars: {
+      name: 'Star Wars',
+      felt: { bg:'#0a0a1a', light:'#0f0f2a', shadow:'#050510' },
+      back1: { bg:'#0a1a3a', grad:'#102a5a 0%, #040e20 100%' },  // Rebel blue
+      back2: { bg:'#3a0a0a', grad:'#5a1010 0%, #200404 100%' },  // Empire red
+      logoSVG: (d) => d === 1
+        // Rebel Alliance starbird
+        ? `<g opacity="0.45" transform="translate(35,50) scale(0.9)">
+            <polygon points="0,-18 4,-6 17,-6 7,2 11,14 0,7 -11,14 -7,2 -17,-6 -4,-6" fill="#c8a84b"/>
+          </g>`
+        // Imperial cog
+        : `<g opacity="0.45" transform="translate(35,50)">
+            <circle cx="0" cy="0" r="16" fill="none" stroke="#c0c0c0" stroke-width="1.5"/>
+            <circle cx="0" cy="0" r="9" fill="none" stroke="#c0c0c0" stroke-width="1.5"/>
+            ${Array.from({length:8},(_,i) => {
+              const a = i*45*Math.PI/180;
+              const x1=Math.cos(a)*9, y1=Math.sin(a)*9, x2=Math.cos(a)*16, y2=Math.sin(a)*16;
+              return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#c0c0c0" stroke-width="1.5"/>`;
+            }).join('')}
+          </g>`,
+      tableWatermark: `<g opacity="0.055" transform="translate(100,100)">
+        <!-- Death Star silhouette -->
+        <circle cx="0" cy="0" r="55" fill="none" stroke="#ffffff" stroke-width="2"/>
+        <circle cx="0" cy="0" r="42" fill="none" stroke="#ffffff" stroke-width="0.8"/>
+        <line x1="-55" y1="-12" x2="55" y2="-12" stroke="#ffffff" stroke-width="1.5"/>
+        <circle cx="22" cy="-12" r="14" fill="none" stroke="#ffffff" stroke-width="1.5"/>
+        <circle cx="22" cy="-12" r="7" fill="#ffffff" opacity="0.3"/>
+      </g>`,
+      portraits: {
+        // Jack = Yoda
+        11: (a, l) => `
+          <!-- Yoda ears -->
+          <ellipse cx="22" cy="32" rx="7" ry="4" fill="${l}" transform="rotate(-30,22,32)"/>
+          <ellipse cx="48" cy="32" rx="7" ry="4" fill="${l}" transform="rotate(30,48,32)"/>
+          <!-- Head — small and round -->
+          <ellipse cx="35" cy="33" rx="11" ry="10" fill="${l}"/>
+          <!-- Eyes — big and wise -->
+          <ellipse cx="30" cy="31" rx="3.5" ry="4" fill="#3a5a1a"/>
+          <ellipse cx="40" cy="31" rx="3.5" ry="4" fill="#3a5a1a"/>
+          <circle cx="30" cy="31" r="1.5" fill="#000"/>
+          <circle cx="40" cy="31" r="1.5" fill="#000"/>
+          <!-- Wrinkles -->
+          <path d="M26 27 Q30 25 34 27" stroke="${a}" stroke-width="0.8" fill="none"/>
+          <path d="M36 27 Q40 25 44 27" stroke="${a}" stroke-width="0.8" fill="none"/>
+          <!-- Robe -->
+          <path d="M20 50 Q22 42 35 40 Q48 42 50 50 Z" fill="${a}"/>
+          <!-- Staff -->
+          <line x1="18" y1="36" x2="14" y2="54" stroke="#8B6914" stroke-width="2.5" stroke-linecap="round"/>`,
+        // Queen = Princess Leia
+        12: (a, l) => `
+          <!-- Side buns — iconic -->
+          <circle cx="22" cy="28" r="7" fill="${a}"/>
+          <circle cx="48" cy="28" r="7" fill="${a}"/>
+          <!-- Head -->
+          <ellipse cx="35" cy="31" rx="9" ry="10" fill="${l}"/>
+          <!-- Eyes -->
+          <ellipse cx="31" cy="29" rx="2.5" ry="2.5" fill="#2a1a0a"/>
+          <ellipse cx="39" cy="29" rx="2.5" ry="2.5" fill="#2a1a0a"/>
+          <!-- Hair connecting to buns -->
+          <rect x="22" y="22" width="26" height="8" fill="${a}" rx="2"/>
+          <!-- White robe -->
+          <path d="M21 50 Q24 40 35 37 Q46 40 49 50 Z" fill="#f0f0f0"/>
+          <!-- Neckline detail -->
+          <path d="M30 37 Q35 40 40 37" stroke="${a}" stroke-width="1" fill="none"/>`,
+        // King = Darth Vader
+        13: (a, l) => `
+          <!-- Helmet dome -->
+          <ellipse cx="35" cy="26" rx="14" ry="13" fill="${a}"/>
+          <!-- Face plate -->
+          <rect x="25" y="28" width="20" height="16" fill="${a}" rx="2"/>
+          <!-- Eye lenses — red glow -->
+          <ellipse cx="30" cy="30" rx="4" ry="3" fill="#1a0000"/>
+          <ellipse cx="40" cy="30" rx="4" ry="3" fill="#1a0000"/>
+          <ellipse cx="30" cy="30" rx="2" ry="1.5" fill="#cc0000" opacity="0.7"/>
+          <ellipse cx="40" cy="30" rx="2" ry="1.5" fill="#cc0000" opacity="0.7"/>
+          <!-- Breathing grille -->
+          <rect x="31" y="37" width="8" height="2" fill="#1a1a1a" rx="1"/>
+          <rect x="31" y="40" width="8" height="2" fill="#1a1a1a" rx="1"/>
+          <!-- Cape / shoulders -->
+          <path d="M18 50 Q20 40 35 38 Q50 40 52 50 Z" fill="${a}"/>
+          <!-- Lightsaber hilt -->
+          <rect x="50" y="32" width="4" height="16" fill="#888" rx="2"/>
+          <rect x="50" y="28" width="4" height="5" fill="#cc0000" rx="1"/>`,
+      },
+    },
+
+    // ── WICKED ───────────────────────────────────────────────────────────────
+    wicked: {
+      name: 'Wicked',
+      felt: { bg:'#0f2a0f', light:'#143314', shadow:'#08180a' },
+      back1: { bg:'#0a2a0a', grad:'#145a14 0%, #051505 100%' },  // Elphaba green
+      back2: { bg:'#2a0a2a', grad:'#5a1a5a 0%, #150515 100%' },  // Glinda pink
+      logoSVG: (d) => d === 1
+        // Witch hat (Elphaba)
+        ? `<g opacity="0.5">
+            <polygon points="35,18 47,46 23,46" fill="#1a3a1a"/>
+            <rect x="18" y="46" width="34" height="5" fill="#2a5a2a" rx="2"/>
+            <rect x="30" y="40" width="10" height="3" fill="#c8a84b"/>
+          </g>`
+        // Crown/wand (Glinda)
+        : `<g opacity="0.45">
+            <polygon points="35,20 38,30 48,30 40,36 43,46 35,40 27,46 30,36 22,30 32,30" fill="#c8a84b"/>
+          </g>`,
+      tableWatermark: `<g opacity="0.06" transform="translate(100,100)">
+        <!-- Emerald City skyline -->
+        <rect x="-50" y="0" width="12" height="40" fill="#2a6a2a"/>
+        <polygon points="-50,0 -44,0 -47,-15" fill="#3a8a3a"/>
+        <rect x="-34" y="-15" width="16" height="55" fill="#2a6a2a"/>
+        <polygon points="-34,-15 -18,-15 -26,-35" fill="#3a8a3a"/>
+        <rect x="-14" y="-5" width="10" height="45" fill="#2a6a2a"/>
+        <polygon points="-14,-5 -4,-5 -9,-22" fill="#3a8a3a"/>
+        <rect x="4" y="-20" width="18" height="60" fill="#2a6a2a"/>
+        <polygon points="4,-20 22,-20 13,-42" fill="#3a8a3a"/>
+        <rect x="26" y="-8" width="12" height="48" fill="#2a6a2a"/>
+        <polygon points="26,-8 38,-8 32,-24" fill="#3a8a3a"/>
+        <!-- Moon -->
+        <circle cx="35" cy="-45" r="12" fill="none" stroke="#c8a84b" stroke-width="1.5"/>
+      </g>`,
+      portraits: {
+        // Jack = The Wizard
+        11: (a, l) => `
+          <!-- Top hat -->
+          <rect x="27" y="16" width="16" height="14" fill="${a}" rx="1"/>
+          <rect x="23" y="28" width="24" height="4" fill="${a}" rx="2"/>
+          <!-- Hat band -->
+          <rect x="27" y="26" width="16" height="3" fill="#c8a84b"/>
+          <!-- Head -->
+          <ellipse cx="35" cy="37" rx="9" ry="9" fill="${l}"/>
+          <!-- Monocle -->
+          <circle cx="39" cy="35" r="4" fill="none" stroke="#c8a84b" stroke-width="1.2"/>
+          <line x1="43" y1="38" x2="46" y2="42" stroke="#c8a84b" stroke-width="0.8"/>
+          <!-- Moustache -->
+          <path d="M28 40 Q31 38 35 40 Q39 38 42 40" stroke="${a}" stroke-width="1.5" fill="none"/>
+          <!-- Suit -->
+          <path d="M22 54 Q24 44 35 42 Q46 44 48 54 Z" fill="${a}"/>
+          <rect x="34" y="42" width="2" height="8" fill="#c8a84b"/>`,
+        // Queen = Glinda
+        12: (a, l) => `
+          <!-- Sparkle crown -->
+          <path d="M24 22 L27 14 L31 20 L35 12 L39 20 L43 14 L46 22 Z" fill="#c8a84b"/>
+          <rect x="24" y="22" width="22" height="4" fill="#c8a84b" rx="1"/>
+          <!-- Gems on crown -->
+          <circle cx="31" cy="19" r="2" fill="#ff88cc"/>
+          <circle cx="35" cy="16" r="2" fill="#ff44aa"/>
+          <circle cx="39" cy="19" r="2" fill="#ff88cc"/>
+          <!-- Head -->
+          <ellipse cx="35" cy="32" rx="9" ry="9" fill="${l}"/>
+          <!-- Curly hair -->
+          <ellipse cx="25" cy="32" rx="4" ry="7" fill="#c8a84b" opacity="0.7"/>
+          <ellipse cx="45" cy="32" rx="4" ry="7" fill="#c8a84b" opacity="0.7"/>
+          <!-- Eyes — sparkly -->
+          <ellipse cx="31" cy="30" rx="2.5" ry="2.5" fill="#4a2a6a"/>
+          <ellipse cx="39" cy="30" rx="2.5" ry="2.5" fill="#4a2a6a"/>
+          <circle cx="32" cy="29" r="0.8" fill="white"/>
+          <circle cx="40" cy="29" r="0.8" fill="white"/>
+          <!-- Pink gown neckline -->
+          <path d="M21 54 Q24 43 35 40 Q46 43 49 54 Z" fill="#cc4488"/>
+          <path d="M29 40 Q35 44 41 40" stroke="#c8a84b" stroke-width="1" fill="none"/>`,
+        // King = Elphaba
+        13: (a, l) => `
+          <!-- Witch hat — pointed and dramatic -->
+          <polygon points="35,10 44,38 26,38" fill="${a}"/>
+          <rect x="22" y="37" width="26" height="5" fill="${a}" rx="2"/>
+          <!-- Hat band -->
+          <rect x="26" y="35" width="18" height="3" fill="#c8a84b"/>
+          <!-- Green face -->
+          <ellipse cx="35" cy="44" rx="9" ry="9" fill="#2a7a2a"/>
+          <!-- Intense eyes -->
+          <ellipse cx="31" cy="42" rx="3" ry="3.5" fill="#0a2a0a"/>
+          <ellipse cx="39" cy="42" rx="3" ry="3.5" fill="#0a2a0a"/>
+          <circle cx="31" cy="41" r="1" fill="#4aaa4a"/>
+          <circle cx="39" cy="41" r="1" fill="#4aaa4a"/>
+          <!-- Dark cape -->
+          <path d="M18 56 Q20 46 35 44 Q50 46 52 56 Z" fill="${a}"/>
+          <!-- Broom hint -->
+          <line x1="50" y1="34" x2="54" y2="56" stroke="#8B6914" stroke-width="2" stroke-linecap="round"/>
+          <path d="M50 55 Q54 52 58 56 Q54 58 50 55 Z" fill="#8B6914"/>`,
+      },
+    },
+  };
+
+  // Current theme — loaded from localStorage
+  let currentTheme = localStorage.getItem('deckTheme') || 'classic';
+
+  function onThemeChange(themeId) {
+    currentTheme = themeId;
+    localStorage.setItem('deckTheme', themeId);
+    applyThemeToDOM(themeId);
+    // Re-render if game is active
+    if (gameState) render(gameState);
+  }
+
+  function applyThemeToDOM(themeId) {
+    const theme = THEMES[themeId] || THEMES.classic;
+    const root  = document.documentElement.style;
+    root.setProperty('--felt',        theme.felt.bg);
+    root.setProperty('--felt-light',  theme.felt.light);
+    root.setProperty('--felt-shadow', theme.felt.shadow);
+    // Update body background directly
+    document.body.style.background = theme.felt.bg;
+    document.body.style.backgroundImage =
+      `radial-gradient(ellipse at 50% 50%, ${theme.felt.light} 0%, ${theme.felt.shadow} 100%)`;
+    // Update theme select if visible
+    const sel = document.getElementById('deck-theme-select');
+    if (sel) sel.value = themeId;
+    // Update theme preview
+    const prev = document.getElementById('theme-preview');
+    if (prev) {
+      const descriptions = {
+        classic:   'Classic green felt · Diamond ornament backs',
+        minecraft: 'Grass block table · Creeper, Steve & Enderman face cards',
+        starwars:  'Death Star table · Yoda, Leia & Vader face cards',
+        wicked:    'Emerald City table · Wizard, Glinda & Elphaba face cards',
+      };
+      prev.textContent = descriptions[themeId] || '';
+    }
+  }
+
+  // Build a card back SVG data URI for a given deck owner
+  function buildCardBackSVG(deckOwner) {
+    const theme = THEMES[currentTheme] || THEMES.classic;
+    const back  = deckOwner === 1 ? theme.back1 : theme.back2;
+    const logo  = theme.logoSVG(deckOwner);
+    // Border colour: gold for deck 1, slightly dimmer for deck 2
+    const border = deckOwner === 1 ? 'rgba(200,168,75,0.55)' : 'rgba(200,168,75,0.4)';
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 70 100'>
+      <rect width='70' height='100' fill='${back.bg}'/>
+      <rect width='70' height='100' fill='url(%23g${deckOwner})'/>
+      <defs>
+        <radialGradient id='g${deckOwner}' cx='50%' cy='40%' r='60%'>
+          <stop offset='0%' stop-color='${back.grad.split(' 0%')[0]}'/>
+          <stop offset='100%' stop-color='${back.grad.split(', ')[1]?.split(' 100%')[0] || '#000'}'/>
+        </radialGradient>
+      </defs>
+      <rect x='4' y='4' width='62' height='92' rx='3'
+            fill='none' stroke='${border}' stroke-width='1'/>
+      <rect x='4' y='4' width='62' height='92' rx='3'
+            fill='none'
+            style='background-image:repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(255,255,255,0.03) 5px,rgba(255,255,255,0.03) 6px)'/>
+      ${logo}
+    </svg>`.replace(/\n\s*/g, ' ');
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+  }
+
+  // Apply theme to face-down cards — injects CSS dynamically
+  function applyThemeToCards() {
+    const styleId = 'theme-card-style';
+    let styleEl = document.getElementById(styleId);
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = styleId;
+      document.head.appendChild(styleEl);
+    }
+    const theme = THEMES[currentTheme] || THEMES.classic;
+    styleEl.textContent = `
+      .card.face-down {
+        background: ${theme.back1.bg} !important;
+        background-image: radial-gradient(ellipse at 50% 40%, ${theme.back1.grad}) !important;
+      }
+      .card.face-down.deck2-back {
+        background: ${theme.back2.bg} !important;
+        background-image: radial-gradient(ellipse at 50% 40%, ${theme.back2.grad}) !important;
+      }
+      .card.face-down::after {
+        content: '' !important;
+        background: ${buildCardBackSVG(1)} center/contain no-repeat !important;
+        opacity: 1 !important;
+      }
+      .card.face-down.deck2-back::after {
+        background: ${buildCardBackSVG(2)} center/contain no-repeat !important;
+      }
+    `;
+  }
+
+  // Apply table watermark
+  function applyTableWatermark(themeId) {
+    const theme = THEMES[themeId] || THEMES.classic;
+    let wmEl = document.getElementById('table-watermark');
+    if (!wmEl) {
+      wmEl = document.createElement('div');
+      wmEl.id = 'table-watermark';
+      wmEl.style.cssText = `
+        position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden;
+        display:flex; align-items:center; justify-content:center;
+      `;
+      document.body.prepend(wmEl);
+    }
+    if (theme.tableWatermark) {
+      wmEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 200 200" style="width:min(40vw,40vh);opacity:1">
+        ${theme.tableWatermark}
+      </svg>`;
+    } else {
+      wmEl.innerHTML = '';
+    }
+  }
+
+  // Master apply — called on load and theme change
+  function applyTheme(themeId) {
+    applyThemeToDOM(themeId);
+    applyThemeToCards();
+    applyTableWatermark(themeId);
+  }
+
+  // Apply on load
+  applyTheme(currentTheme);
+
+
 
   function toggleLobbySettings() {
     document.getElementById('lobby-settings').classList.toggle('open');
@@ -1294,7 +1722,7 @@
     const gameType = document.getElementById('create-game-type').value;
     myName = name;
     document.getElementById('btn-create').disabled = true;
-    socket.emit('createRoom', { name, gameType });
+    socket.emit('createRoom', { name, gameType, theme: currentTheme });
   }
 
   function doJoinRoom() {
@@ -1304,7 +1732,7 @@
     if (code.length !== 6) { showLobbyError('join-error', 'Room code must be 6 characters.'); return; }
     myName = name;
     document.getElementById('btn-join').disabled = true;
-    socket.emit('joinRoom', { roomCode: code, name });
+    socket.emit('joinRoom', { roomCode: code, name, theme: currentTheme });
   }
 
   function joinFromList(code) {
@@ -1357,7 +1785,7 @@
     if (!name) { showLobbyError('link-error', 'Please enter your name.'); return; }
     myName = name;
     document.querySelector('#screen-join-link .btn-lobby').disabled = true;
-    socket.emit('joinRoom', { roomCode: code, name });
+    socket.emit('joinRoom', { roomCode: code, name, theme: currentTheme });
   }
 
   // Check URL for ?room=CODE on page load — show join-link screen if present
@@ -1487,6 +1915,12 @@
   function applyStateUpdate(state, lastEvent) {
     gameState    = state;
     selectedCard = null;
+
+    // Apply the server-decided table theme (player 2's choice wins)
+    if (state.tableTheme && state.tableTheme !== currentTheme) {
+      currentTheme = state.tableTheme;
+      applyTheme(currentTheme);
+    }
 
     if (state.phase === 'gameOver') {
       if (lastEvent === 'opponentLeft') {
@@ -2301,7 +2735,16 @@
   // Draws into the TOP half of the 70×100 viewBox (y: 22–50)
   // Includes a shoulder pip at x=15, y=38
   function buildPortraitSVG(rank, accent, light, sym) {
-    // Shoulder pip — appears on left shoulder of top portrait
+    // Use themed portrait if available for current theme
+    const theme = THEMES[currentTheme];
+    if (theme?.portraits?.[rank]) {
+      const shoulder = `<text x="15" y="42" font-family="Georgia,serif"
+                              font-size="12" fill="${accent}" text-anchor="middle"
+                              dominant-baseline="middle" opacity="0.9">${sym}</text>`;
+      return shoulder + theme.portraits[rank](accent, light);
+    }
+
+    // Default classic portraits
     const shoulder = `<text x="15" y="42" font-family="Georgia,serif"
                             font-size="12" fill="${accent}" text-anchor="middle"
                             dominant-baseline="middle" opacity="0.9">${sym}</text>`;

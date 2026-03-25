@@ -49,7 +49,8 @@ function sanitiseName(raw)           { return (typeof raw==='string' ? raw.trim(
 
 function statePayload(room, lastEvent='update', lastMove=null) {
   const names = { 1: room.players[1]?.name||'Player 1', 2: room.players[2]?.name||'Player 2' };
-  return { ...room.gameState, names, lastEvent, lastMove };
+  const tableTheme = room.players[2]?.theme || room.players[1]?.theme || 'classic';
+  return { ...room.gameState, names, tableTheme, lastEvent, lastMove };
 }
 function broadcastState(room, lastEvent='update', lastMove=null) {
   broadcastRoom(room, 'gameStateUpdate', statePayload(room, lastEvent, lastMove));
@@ -133,7 +134,7 @@ io.on('connection', (socket) => {
   });
 
   // Create a room
-  socket.on('createRoom', ({ name, gameType='marieken-gratie' }) => {
+  socket.on('createRoom', ({ name, gameType='marieken-gratie', theme='classic' }) => {
     const existing = getRoomForSocket(socket.id);
     if (existing) handleLeave(socket, existing);
 
@@ -141,7 +142,7 @@ io.on('connection', (socket) => {
     rooms.set(code, { code, gameType, gameState:null, players:{1:null,2:null}, createdAt:Date.now() });
     const room = rooms.get(code);
     const safeName = sanitiseName(name);
-    room.players[1] = { socketId:socket.id, name:safeName };
+    room.players[1] = { socketId:socket.id, name:safeName, theme:theme };
     socketToRoom.set(socket.id, code);
     socket.join(code);
     console.log(`Room ${code} created by "${safeName}"`);
@@ -149,7 +150,7 @@ io.on('connection', (socket) => {
   });
 
   // Join an existing room
-  socket.on('joinRoom', ({ roomCode, name }) => {
+  socket.on('joinRoom', ({ roomCode, name, theme='classic' }) => {
     const code = (roomCode||'').trim().toUpperCase();
     const room = rooms.get(code);
     if (!room)           { socket.emit('joinError', { reason:`Room "${code}" not found. Check the code and try again.` }); return; }
@@ -159,7 +160,7 @@ io.on('connection', (socket) => {
     if (existing) handleLeave(socket, existing);
 
     const safeName = sanitiseName(name);
-    room.players[2] = { socketId:socket.id, name:safeName };
+    room.players[2] = { socketId:socket.id, name:safeName, theme:theme };
     socketToRoom.set(socket.id, code);
     socket.join(code);
     console.log(`Room ${code}: "${safeName}" joined as player 2`);
