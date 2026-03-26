@@ -1381,21 +1381,14 @@
       felt: { bg:'#0a0a1a', light:'#0f0f2a', shadow:'#050510' },
       back1: { bg:'#0a1a3a', grad:'#102a5a 0%, #040e20 100%' },  // Rebel blue
       back2: { bg:'#3a0a0a', grad:'#5a1010 0%, #200404 100%' },  // Empire red
-      logoSVG: (d) => d === 1
-        // Rebel Alliance starbird
-        ? `<g opacity="0.45" transform="translate(35,50) scale(0.9)">
-            <polygon points="0,-18 4,-6 17,-6 7,2 11,14 0,7 -11,14 -7,2 -17,-6 -4,-6" fill="#c8a84b"/>
-          </g>`
-        // Imperial cog
-        : `<g opacity="0.45" transform="translate(35,50)">
-            <circle cx="0" cy="0" r="16" fill="none" stroke="#c0c0c0" stroke-width="1.5"/>
-            <circle cx="0" cy="0" r="9" fill="none" stroke="#c0c0c0" stroke-width="1.5"/>
-            ${Array.from({length:8},(_,i) => {
-              const a = i*45*Math.PI/180;
-              const x1=Math.cos(a)*9, y1=Math.sin(a)*9, x2=Math.cos(a)*16, y2=Math.sin(a)*16;
-              return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#c0c0c0" stroke-width="1.5"/>`;
-            }).join('')}
-          </g>`,
+      logoSVG: (d) => {
+        const op = d === 1 ? '0.75' : '0.65';
+        // Star Wars wordmark PNG — white-on-transparent, rotated 90° like Minecraft
+        return `<image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADgAAAAfCAYAAACyLw6QAAAHQklEQVR42t1ZW4idVxX+1vr3ucxMUiVtYtWmIFJLSDUEKyrUCE2s1ZpqJRGEWpJ6K5FS0CIGbR98SlTaJ2kRn8QnK+K1sdCUNClG1Gq1hJikBhOiYGsmpslM5pzzr/X50LXH7e9/5lItSDds/rPv676+vQ/wKi+ylEkkFYD+14eJ1CQFQDVmiouIL/Ncxjq+LKLikP/7Mo7OpWpwI4B3mtnEctYVEhYAl1JKD83Ozq7tdrvbAXihHQegVVX9REROkKxExEi+zcy2NOaiqiqaWZDG0yml/SJynqSWFrAQQ0JSSSaS3+L/oNi/KLpvgTnfjDkT8b1nidufJnlLmybTGB6r8Jd7AHwagIUmcrEWS2iaiDU0+ALJrrvfrKp1jFelBgG8j2QCMAQAM7tUVVUNoF6AVgBYC+AHJDcAOFZqcpx/OQC4+8cLQlNRe43abYyXc/oAeqraB7AOwNtjvAsgBUNdAJWqXgNgo4jkM7Vl3/kaa7NAugBuj2Cji2nwpd1VRyF9FlLeB+BBACuK/nUA9hRzzgG4O2si+v4O4AZV7WXtkWxqPLn7VgC/XmaM0Vi/epy/NWuHpNR1vTtsfJTdhOQMyY829tgQ43X40pk2Kszsp+U8d6e7s+wj+XT2I5J3Nc4fV/L4rpL+SEkLBpvKzH5eMDdPzXA43BRBqCK5qcHgX0mujPFuzFljZudjnmcGyy9JN7Oa5HUAUNf1riUwaPE9SLLb5CGRfN0CIMBV9XPu/jNVfUuYpAFInU5nl4gcDEFYm8IiUHUi5N+gqpeVwUXkPwRsqprM7IMkjywQI3Lg8vgeBnAngNeG9nN/ndz9OVUdt4kCqFU1Fbkv++TaZeRBuPtWVWURjesC4SCYlmjfKiJfI+ktwU8L5jLhGwD8JmKKF3QeT6q6YjmEBmE9dz/ZMl7WEp713X1zAySkMVZDVb2e5IpIE+WeBuBud9+tqlcBGMU+k2NoXpleBm7tuXutqg+EOWRzkYLoBKB08nepatZ4zn27AZwNLbi7f0VVrw4N9ADcBOBSsa8A6AA4oKqPA3gSwJWLEZ0AvNiAXlK0vaGhEYBjqvplEfldJFSSHAKYCQkLgPMA6gyAzexGVZ0p8tUfRGRPI6C9AcAXAAyCwS0ADkZ7UJjmKhF5iuQWAHsBXA9gosFDFvoFIfnmBiOjot3LnXNzc+j3+y+KyNkgaLKY1wUwFb/7wegLhaleXgAGCWHMxToUml1VEFfHHgLgsmCQoXXPYODixYtXTk1N9cdg5JGQPAxgTRHdTojIzST3AthWBIME4Osi8rCZ/UpVXx8a6ZjZt1NKXyX5RQCfjb0mCiswANtF5OlCY9sCMNRFcKgb/j4N4BEA38jWQFLCanYGjFzTwlwW0kmY2Xdbcst1ZvZcS/9+kutb+m8KUzy6AJB+IJLvZHx3LgOrPxHrOsHk7iWu+xNGo9H7I/HWUd3MHiF5MZLofDWz583se9Eexrq/REK/JpK0Neoo5h2JhF8FkZ+I8UHLmrLOBbF3AcDMzMwbSc4GraMmAGmUUyml9JS7n4ko5wBEVbeNwaarAWxvAPIDVVXVJD+sqlUL8s++s244HL611+s907iBKAB1d4jIfPInWeZHd/f3Anh4cnLy6jD/bIZwd1fVQxFlWYydTiIyY2aPA9iRk6e7U1VlERQhIYwfxiEfCsAgmcAiiRuA1O12bwHwzHIv6zkiRvuku19Q1ansq0HrQRG5bxzYvq0BeEvf8RYTyO3z09PTryF5RYBwjjGXjFF/mXMjyTtKnFng0bZzSHJzuIKS3NOgN+PRL8Xe6d/ANslVJP+xAIHjCN4XoPiO5i1hnsKXfmchDUleG2fuaAHS1mDOSP6N5MdabiYPFXPmv3Nzc9eWN/sU7x/TJJ8EcGs2p8Jc/whgtapeXphLNo0fxxvJ1jK8x4HZb7Mf1pFSPgDg2BggrY0z1N3PAlhP8sECSDBS1KjIpQag6vV6m0gezwhpXp11XX+yofYs2R0kv1+MZfUMSF5Fsk/y+SVoP+/7RAhhZ/OuaWa/aNHkUsuQJOu6vjObaU7eHonzMQCzIZFRBI5aVX8UUeu26BcAlbv/tqqqMyQ3BwIZFnDqZIFcOgDeFBZBd38HyV6gmfzeYgCqwWBw78TExHvidcAaIHsc1MyW0wEwqqrqAMmVInIBAJKIeGDKMyR/D+DdRVp4VkTOkTwQxPeLsX3hxJ+KUJ5B9LMANjYOPpGvV3F7+UiRTlKx5xoR2WtmU6paRsTOEqLtCMBnAJwys9vjnnu0eZu4H8DmmNyp6/pQMHEcwL0ArijuYd8REdZ1fbiqqj8XBB+KC64CoIgMSH4+HptGAFJd1xdSSieLd5zsf0dD2PeTfBTAjfH2M+4tNkO6cwAeFZEjJKvBYLB/cnJyPYBTr9Qrs7T9fqVf09vWySL/QTCj9uy0jScJBvSStjXl205jjof0q7Y9x6xZrMz/rxFClcZb7quz/BP7uZDiL6wiJQAAAABJRU5ErkJggg=="
+          x="7" y="44" width="56" height="11"
+          transform="rotate(90,35,50)"
+          opacity="${op}" style="mix-blend-mode:screen"/>`;
+      },
       tableWatermark: null,
       portraits: {
         // Jack = BB8
@@ -2210,9 +2203,8 @@
 
     if (pile.length === 0) { el.appendChild(emptySlot()); return; }
 
-    const cardEl = document.createElement('div');
-    cardEl.className = 'card face-down';
-    if (deckOwner === 2) cardEl.classList.add('deck2-back');
+    // Use makeCard with a synthetic face-down card so inline theme styles are applied
+    const cardEl = makeCard({ suit:'spades', rank:0, faceUp:false, deckOwner: deckOwner }, null);
 
     const badge = document.createElement('div');
     badge.className = 'pile-count';
