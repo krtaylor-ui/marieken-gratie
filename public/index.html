@@ -1477,7 +1477,7 @@
   // Build a card back SVG — uses the card owner's theme (or myCardTheme as fallback)
   function buildCardBackSVG(deckOwner, themeId) {
     const theme = THEMES[themeId || myCardTheme] || THEMES.classic;
-    const back  = deckOwner === 1 ? theme.back1 : theme.back2;
+    const back  = +deckOwner === 1 ? theme.back1 : theme.back2;
     const logo  = theme.logoSVG(deckOwner);
     // Border colour: gold for deck 1, slightly dimmer for deck 2
     const border = deckOwner === 1 ? 'rgba(200,168,75,0.55)' : 'rgba(200,168,75,0.4)';
@@ -2519,7 +2519,7 @@
       // back2 = "away" colour (second player's deck)
       // deckOwner === gameFirstPlayer  → home card → back1
       // deckOwner !== gameFirstPlayer  → away card → back2
-      const isHome = card.+deckOwner === +gameFirstPlayer;
+      const isHome = +card.deckOwner === +gameFirstPlayer;
       if (!isHome) el.classList.add('deck2-back');  // keeps existing red/blue CSS fallback
 
       const theme = THEMES[cardTheme] || THEMES.classic;
