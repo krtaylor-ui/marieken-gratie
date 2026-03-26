@@ -1496,6 +1496,7 @@
   let myCardTheme = localStorage.getItem('deckTheme') || 'classic';
   let currentTheme = myCardTheme; // currentTheme drives face card portraits
   let gamePlayerThemes = { 1: 'classic', 2: 'classic' }; // set from server state
+  let gameFirstPlayer  = 1;  // which player number went first — determines back1/back2
 
   function onThemeChange(themeId) {
     myCardTheme   = themeId;
@@ -1841,6 +1842,10 @@
       currentTheme = myCardTheme;
       applyThemeToCards();
     }
+    // Store who went first — determines back1 (home) vs back2 (away) colour slot
+    if (state.turn?.firstPlayer) {
+      gameFirstPlayer = state.turn.firstPlayer;
+    }
     // Table felt uses non-first-player's theme
     if (state.tableTheme) {
       applyThemeToDOM(state.tableTheme);
@@ -1912,14 +1917,15 @@
       flyEl.className = `card ${colour} animating`;
       flyEl.innerHTML = buildCardSVG(card.rank, card.suit, cardTheme);
     } else {
-      const cardTheme = gamePlayerThemes[card?.deckOwner] || myCardTheme;
-      const theme     = THEMES[cardTheme] || THEMES.classic;
       const deckOwner = card?.deckOwner || 1;
-      const back      = deckOwner === 2 ? theme.back2 : theme.back1;
-      flyEl.className = `card face-down animating${deckOwner === 2 ? ' deck2-back' : ''}`;
+      const cardTheme = gamePlayerThemes[deckOwner] || myCardTheme;
+      const isHome    = deckOwner === gameFirstPlayer;
+      const theme     = THEMES[cardTheme] || THEMES.classic;
+      const back      = isHome ? theme.back1 : theme.back2;
+      flyEl.className = `card face-down animating${isHome ? '' : ' deck2-back'}`;
       flyEl.style.background = back.bg;
       flyEl.style.backgroundImage = `radial-gradient(ellipse at 50% 40%, ${back.grad})`;
-      flyEl.innerHTML = `<div class="card-back-logo" style="background-image:${buildCardBackSVG(deckOwner, cardTheme)}"></div>`;
+      flyEl.innerHTML = `<div class="card-back-logo" style="background-image:${buildCardBackSVG(isHome ? 1 : 2, cardTheme)}"></div>`;
     }
 
     // Position at source
@@ -2589,18 +2595,23 @@
 
     if (!card.faceUp) {
       el.classList.add('face-down');
-      if (card.deckOwner === 2) el.classList.add('deck2-back');
 
-      // Apply the card owner's theme gradient as inline background
+      // back1 = "home" colour (first player's deck)
+      // back2 = "away" colour (second player's deck)
+      // deckOwner === gameFirstPlayer  → home card → back1
+      // deckOwner !== gameFirstPlayer  → away card → back2
+      const isHome = card.deckOwner === gameFirstPlayer;
+      if (!isHome) el.classList.add('deck2-back');  // keeps existing red/blue CSS fallback
+
       const theme = THEMES[cardTheme] || THEMES.classic;
-      const back  = card.deckOwner === 2 ? theme.back2 : theme.back1;
+      const back  = isHome ? theme.back1 : theme.back2;
       el.style.background = back.bg;
       el.style.backgroundImage = `radial-gradient(ellipse at 50% 40%, ${back.grad})`;
 
-      // Add logo overlay div (replaces ::after which can't be set inline)
+      // Per-card logo overlay div
       const logoDiv = document.createElement('div');
       logoDiv.className = 'card-back-logo';
-      logoDiv.style.backgroundImage = buildCardBackSVG(card.deckOwner, cardTheme);
+      logoDiv.style.backgroundImage = buildCardBackSVG(isHome ? 1 : 2, cardTheme);
       el.appendChild(logoDiv);
 
       if (clickFn) el.onclick = clickFn;
