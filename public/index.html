@@ -1560,34 +1560,11 @@
     return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
   }
 
-  // Apply theme to face-down cards — injects CSS dynamically
+  // applyThemeToCards is no longer needed — each card's back is set inline
+  // in makeCard() using gamePlayerThemes and gameFirstPlayer, so a global
+  // CSS override would break the per-card theming. This is a no-op stub.
   function applyThemeToCards() {
-    const styleId = 'theme-card-style';
-    let styleEl = document.getElementById(styleId);
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = styleId;
-      document.head.appendChild(styleEl);
-    }
-    const theme = THEMES[myCardTheme] || THEMES.classic;
-    styleEl.textContent = `
-      .card.face-down {
-        background: ${theme.back1.bg} !important;
-        background-image: radial-gradient(ellipse at 50% 40%, ${theme.back1.grad}) !important;
-      }
-      .card.face-down.deck2-back {
-        background: ${theme.back2.bg} !important;
-        background-image: radial-gradient(ellipse at 50% 40%, ${theme.back2.grad}) !important;
-      }
-      .card.face-down::after {
-        content: '' !important;
-        background: ${buildCardBackSVG(1)} center/contain no-repeat !important;
-        opacity: 1 !important;
-      }
-      .card.face-down.deck2-back::after {
-        background: ${buildCardBackSVG(2)} center/contain no-repeat !important;
-      }
-    `;
+    // intentionally empty — per-card theming handled in makeCard()
   }
 
   // Apply table watermark
@@ -2051,6 +2028,9 @@
     gameState      = null;
     selectedCard   = null;
     myPlayerNumber = null;
+    // Remove any stale injected theme styles
+    const stale = document.getElementById('theme-card-style');
+    if (stale) stale.remove();
     // Clear ?room= param so refreshing doesn't re-trigger join-link screen
     if (location.search) history.replaceState({}, '', location.pathname);
     showScreen('lobby');
